@@ -314,11 +314,15 @@ fun RemoteCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (remote.isPinned) 3.5.dp else 2.dp,
+            pressedElevation = 6.dp
         ),
         border = BorderStroke(
             width = if (remote.isPinned) 2.dp else 1.dp,
-            color = if (remote.isPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
+            color = if (remote.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
