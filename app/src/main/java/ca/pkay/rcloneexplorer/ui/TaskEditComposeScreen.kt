@@ -345,7 +345,7 @@ fun TaskEditComposeScreen(
                     val directionOptions = listOf(
                         SyncDirectionObject.SYNC_LOCAL_TO_REMOTE to "Sync: Local → Cloud (Upload changes)",
                         SyncDirectionObject.SYNC_REMOTE_TO_LOCAL to "Sync: Cloud → Local (Download changes)",
-                        SyncDirectionObject.SYNC_BIDIRECTIONAL to "Two-Way BiSync (Keep both sides identical)",
+                        SyncDirectionObject.SYNC_BIDIRECTIONAL to "Two-Way BiSync (Keep both sides identical & conflict-protected)",
                         SyncDirectionObject.COPY_LOCAL_TO_REMOTE to "Copy: Local → Cloud (Upload new files only)",
                         SyncDirectionObject.COPY_REMOTE_TO_LOCAL to "Copy: Cloud → Local (Download new files only)",
                         SyncDirectionObject.MOVE_LOCAL_TO_REMOTE to "Move: Local → Cloud (Upload and delete local)",
@@ -431,22 +431,29 @@ fun TaskEditComposeScreen(
                     Divider(color = Color.White.copy(alpha = 0.06f))
 
                     // Delete Excluded Switch
+                    val isBiSync = direction == SyncDirectionObject.SYNC_BIDIRECTIONAL || direction == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Delete Excluded Files", fontWeight = FontWeight.SemiBold)
                             Text(
-                                "Delete files on destination that are excluded by filter rules",
+                                "Delete Excluded Files",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isBiSync) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                if (isBiSync) "Not applicable for Two-Way BiSync (managed symmetrically)"
+                                else "Delete files on destination that are excluded by filter rules",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isBiSync) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Switch(
-                            checked = deleteExcluded,
-                            onCheckedChange = { deleteExcluded = it }
+                            checked = if (isBiSync) false else deleteExcluded,
+                            onCheckedChange = { if (!isBiSync) deleteExcluded = it },
+                            enabled = !isBiSync
                         )
                     }
 

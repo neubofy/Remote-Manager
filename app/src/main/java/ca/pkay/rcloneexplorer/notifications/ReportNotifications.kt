@@ -85,6 +85,7 @@ class ReportNotifications(var mContext: Context) {
 
         val builder = NotificationCompat.Builder(mContext, CHANNEL_REPORT_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.operation_report_success_title))
             .setContentText(mContext.getString(R.string.operation_report_success_short_content, notificationContent.lines().size-1))
             .setStyle(
@@ -139,6 +140,7 @@ class ReportNotifications(var mContext: Context) {
 
         val builder = NotificationCompat.Builder(mContext, CHANNEL_REPORT_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.operation_report_fail_title))
             .setContentText(mContext.getString(R.string.operation_report_fail_short_content, notificationContent.lines().size-1))
             .setStyle(

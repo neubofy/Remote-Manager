@@ -67,6 +67,7 @@ import ca.pkay.rcloneexplorer.Dialogs.LoadingDialog;
 import ca.pkay.rcloneexplorer.Fragments.BookmarksComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.FileExplorerComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.LogFragment;
+import ca.pkay.rcloneexplorer.Fragments.LogsComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.PermissionFragment;
 import ca.pkay.rcloneexplorer.Fragments.RemotesComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.RemotesFragment;
@@ -435,8 +436,8 @@ public class MainActivity extends AppCompatActivity
         startFragment(TriggerFragment.newInstance());
     }
 
-    private void startLogFragment() {
-        startFragment(LogFragment.newInstance());
+    public void startLogFragment() {
+        startFragment(LogsComposeFragment.newInstance());
     }
 
     private void startPermissionFragment() {

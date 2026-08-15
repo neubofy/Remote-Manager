@@ -375,9 +375,23 @@ fun AboutScreen(
 
                     ActionRow(
                         icon = Icons.Default.Gavel,
-                        title = "License",
-                        subtitle = "GNU General Public License v3.0",
-                        onClick = { openUrl(context, "https://www.gnu.org/licenses/gpl-3.0.en.html") }
+                        title = "App License",
+                        subtitle = "GNU General Public License v3.0 (View in Repository)",
+                        onClick = { openUrl(context, "https://github.com/neubofy/Remote-Manager/blob/master/LICENSE") }
+                    )
+
+                    ActionRow(
+                        icon = Icons.Default.Cloud,
+                        title = "Rclone Repository",
+                        subtitle = "github.com/rclone/rclone",
+                        onClick = { openUrl(context, "https://github.com/rclone/rclone") }
+                    )
+
+                    ActionRow(
+                        icon = Icons.Default.Sync,
+                        title = "Round-Sync Repository",
+                        subtitle = "github.com/newhinton/Round-Sync",
+                        onClick = { openUrl(context, "https://github.com/newhinton/Round-Sync") }
                     )
 
                     ActionRow(

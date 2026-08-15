@@ -13,8 +13,10 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ca.pkay.rcloneexplorer.Activities.MainActivity
 import ca.pkay.rcloneexplorer.Activities.TaskActivity
 import ca.pkay.rcloneexplorer.Activities.TriggerActivity
+import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.ui.TasksComposeScreen
 import ca.pkay.rcloneexplorer.ui.viewmodel.TasksViewModel
 
@@ -42,17 +44,7 @@ class TasksComposeFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme(
-                    colorScheme = darkColorScheme(
-                        primary = Color(0xFF3B82F6),
-                        secondary = Color(0xFF38BDF8),
-                        surface = Color(0xFF0F172A),
-                        surfaceVariant = Color(0xFF1E293B),
-                        background = Color(0xFF0B1120),
-                        onBackground = Color(0xFFF8FAFC),
-                        onSurface = Color(0xFFF8FAFC)
-                    )
-                ) {
+                ca.pkay.rcloneexplorer.ui.theme.RemoteManagerTheme {
                     TasksComposeScreen(
                         viewModel = tasksViewModel,
                         onNewTaskClick = {
@@ -77,6 +69,17 @@ class TasksComposeFragment : Fragment() {
                                 putExtra(TriggerActivity.TARGET_TASK_ID_EXTRA, trigger.triggerTarget)
                             }
                             startActivity(intent)
+                        },
+                        onOpenLogsClick = {
+                            val act = activity
+                            if (act is MainActivity) {
+                                act.startLogFragment()
+                            } else {
+                                parentFragmentManager.beginTransaction()
+                                    .replace(R.id.flFragment, LogsComposeFragment.newInstance())
+                                    .addToBackStack(null)
+                                    .commit()
+                            }
                         }
                     )
                 }
