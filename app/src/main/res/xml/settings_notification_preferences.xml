@@ -1,0 +1,17 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="@string/preference_category_header_reports">
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="@string/pref_key_app_notification_reports"
+            android:title="Sync Reports"
+            app:summary="@string/notification_reports" />
+
+        <de.felixnuesse.extract.settings.preferences.ButtonPreference
+            android:key="TempKeyNotificationSettings"
+            app:title="@string/open_notification_settings_title"
+            app:summary="@string/open_notification_settings_summary" />
+    </PreferenceCategory>
+</PreferenceScreen>
