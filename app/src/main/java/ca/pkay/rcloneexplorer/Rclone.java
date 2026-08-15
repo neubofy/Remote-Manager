@@ -181,6 +181,16 @@ public class Rclone {
         String tmpDir = context.getCacheDir().getAbsolutePath();
         environmentValues.add("TMPDIR=" + tmpDir);
 
+        // Ensure Rclone, Bisync, and Go cache/config directories point to internal app storage
+        File bisyncDir = new File(context.getCacheDir(), "bisync");
+        if (!bisyncDir.exists()) {
+            bisyncDir.mkdirs();
+        }
+        environmentValues.add("RCLONE_CACHE_DIR=" + context.getCacheDir().getAbsolutePath());
+        environmentValues.add("XDG_CACHE_HOME=" + context.getCacheDir().getAbsolutePath());
+        environmentValues.add("XDG_CONFIG_HOME=" + context.getFilesDir().getAbsolutePath());
+        environmentValues.add("HOME=" + context.getFilesDir().getAbsolutePath());
+
         // ignore chtimes errors
         // ref: https://github.com/rclone/rclone/issues/2446
         environmentValues.add("RCLONE_LOCAL_NO_SET_MODTIME=true");
@@ -683,6 +693,19 @@ public class Rclone {
         return sync(remoteItem, localPath, remotePath, syncDirection, false, new ArrayList<>(0), false);
     }
 
+    public boolean hasBisyncListing() {
+        try {
+            File bisyncDir = new File(context.getCacheDir(), "bisync");
+            if (!bisyncDir.exists() || !bisyncDir.isDirectory()) {
+                return false;
+            }
+            File[] files = bisyncDir.listFiles((dir, name) -> name.endsWith(".lst"));
+            return files != null && files.length > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public Process sync(RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
         String[] command;
         String remoteName = remoteItem.getName();
@@ -695,7 +718,7 @@ public class Rclone {
         if(useMD5Sum){
             defaultParameter.add("--checksum");
         }
-        if(deleteExcluded){
+        if(deleteExcluded && syncDirection != SyncDirectionObject.SYNC_BIDIRECTIONAL && syncDirection != SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL){
             defaultParameter.add("--delete-excluded");
         }
 
@@ -728,12 +751,19 @@ public class Rclone {
             Collections.addAll(directionParameter, "move", remoteSection, localPath);
             directionParameter.addAll(defaultParameter);
             command = createCommandWithOptions(directionParameter);
-        } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL) {
+        } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL || syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) {
+            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing();
             Collections.addAll(directionParameter, "bisync", localPath, remoteSection);
-            directionParameter.addAll(defaultParameter);
-            command = createCommandWithOptions(directionParameter);
-        } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) {
-            Collections.addAll(directionParameter, "bisync", localPath, remoteSection, "--resync");
+            if (needsResync) {
+                directionParameter.add("--resync");
+            }
+            // Recommended production flags from official rclone bisync specification
+            directionParameter.add("--resilient");
+            directionParameter.add("--recover");
+            directionParameter.add("--max-lock");
+            directionParameter.add("2m");
+            directionParameter.add("--conflict-resolve");
+            directionParameter.add("newer");
             directionParameter.addAll(defaultParameter);
             command = createCommandWithOptions(directionParameter);
         } else {
