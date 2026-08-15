@@ -1144,8 +1144,7 @@ fun GridFileCard(
             .getLong(context.getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
     }
 
-    val cacheSignature = "${fileItem.remote.name}:${fileItem.path}:${fileItem.modTime}:${fileItem.size}"
-    val diskCache = remember { coil.Coil.imageLoader(context).diskCache }
+    val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
     val imageModel: Any? = remember(fileItem, thumbnailServerAuth, thumbnailServerPort, maxThumbnailSize) {
         if (!showThumbnails || !isPhoto || fileItem.size > maxThumbnailSize) {
@@ -1171,12 +1170,11 @@ fun GridFileCard(
                 } else null
             }
         } else {
-            // First check: is it already cached locally on disk?
-            val snapshot = try { diskCache?.openSnapshot(cacheSignature) } catch (e: Exception) { null }
-            val localCachedFile = snapshot?.use { it.data.toFile() }
-            if (localCachedFile != null && localCachedFile.exists()) {
+            // First check: is it already cached locally on disk in ThumbnailCacheManager?
+            val cachedFile = ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCachedThumbnailFile(context, fileItem)
+            if (cachedFile != null) {
                 // Instant 0ms local file load - ZERO network request, ZERO server dependency
-                localCachedFile
+                cachedFile
             } else if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
                 "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
             } else null
@@ -1233,6 +1231,18 @@ fun GridFileCard(
                             .allowRgb565(true)
                             .crossfade(true)
                             .size(160, 160)
+                            .listener(
+                                onSuccess = { _, result ->
+                                    val drawable = result.drawable
+                                    if (imageModel is String && drawable is android.graphics.drawable.BitmapDrawable) {
+                                        ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.saveThumbnailBitmap(
+                                            context,
+                                            fileItem,
+                                            drawable.bitmap
+                                        )
+                                    }
+                                }
+                            )
                             .build(),
                         contentDescription = fileItem.name,
                         contentScale = ContentScale.Crop,
@@ -1333,8 +1343,7 @@ fun ListFileCard(
             .getLong(context.getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
     }
 
-    val cacheSignature = "${fileItem.remote.name}:${fileItem.path}:${fileItem.modTime}:${fileItem.size}"
-    val diskCache = remember { coil.Coil.imageLoader(context).diskCache }
+    val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
     val imageModel: Any? = remember(fileItem, thumbnailServerAuth, thumbnailServerPort, maxThumbnailSize) {
         if (!showThumbnails || !isPhoto || fileItem.size > maxThumbnailSize) {
@@ -1360,12 +1369,11 @@ fun ListFileCard(
                 } else null
             }
         } else {
-            // First check: is it already cached locally on disk?
-            val snapshot = try { diskCache?.openSnapshot(cacheSignature) } catch (e: Exception) { null }
-            val localCachedFile = snapshot?.use { it.data.toFile() }
-            if (localCachedFile != null && localCachedFile.exists()) {
+            // First check: is it already cached locally on disk in ThumbnailCacheManager?
+            val cachedFile = ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCachedThumbnailFile(context, fileItem)
+            if (cachedFile != null) {
                 // Instant 0ms local file load - ZERO network request, ZERO server dependency
-                localCachedFile
+                cachedFile
             } else if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
                 "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
             } else null
@@ -1421,6 +1429,18 @@ fun ListFileCard(
                             .allowRgb565(true)
                             .crossfade(true)
                             .size(160, 160)
+                            .listener(
+                                onSuccess = { _, result ->
+                                    val drawable = result.drawable
+                                    if (imageModel is String && drawable is android.graphics.drawable.BitmapDrawable) {
+                                        ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.saveThumbnailBitmap(
+                                            context,
+                                            fileItem,
+                                            drawable.bitmap
+                                        )
+                                    }
+                                }
+                            )
                             .build(),
                         contentDescription = fileItem.name,
                         contentScale = ContentScale.Crop,

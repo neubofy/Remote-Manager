@@ -63,6 +63,7 @@ class GeneralPreferencesFragment : PreferenceFragmentCompat() {
                     val imageLoader = coil.Coil.imageLoader(requireContext())
                     imageLoader.diskCache?.clear()
                     ca.pkay.rcloneexplorer.data.CacheManager.clearCache(requireContext())
+                    ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.clear(requireContext())
                     withContext(Dispatchers.Main) {
                         imageLoader.memoryCache?.clear()
                         Toasty.success(requireContext(), getString(R.string.thumbnail_cache_cleared), Toast.LENGTH_SHORT, true).show()

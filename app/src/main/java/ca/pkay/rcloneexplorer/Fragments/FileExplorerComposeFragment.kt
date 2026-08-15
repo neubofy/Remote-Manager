@@ -153,15 +153,13 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         }
 
         val ctx = context ?: return
-        val diskCache = coil.Coil.imageLoader(ctx).diskCache
         val maxThumbnailSize = PreferenceManager.getDefaultSharedPreferences(ctx)
             .getLong(getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
 
-        // Check if there is at least one visible image NOT yet cached locally
+        // Check if there is at least one visible image NOT yet cached locally in ThumbnailCacheManager
         val hasUncachedImages = imageFiles.any { item ->
             if (item.size > maxThumbnailSize) return@any false
-            val cacheSignature = "${item.remote.name}:${item.path}:${item.modTime}:${item.size}"
-            diskCache?.get(cacheSignature) == null
+            !ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.isCached(ctx, item)
         }
 
         if (hasUncachedImages) {
