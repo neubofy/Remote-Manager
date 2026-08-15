@@ -57,6 +57,7 @@ public class ThumbnailsLoadingService extends Service {
     private Notification createNotification() {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_file)
+                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.app_logo))
                 .setContentTitle(getString(R.string.thumbnails_loading_notification_title))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setSilent(true)

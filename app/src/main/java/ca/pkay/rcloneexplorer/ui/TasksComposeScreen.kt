@@ -42,7 +42,8 @@ fun TasksComposeScreen(
     onNewTaskClick: () -> Unit,
     onEditTaskClick: (Task) -> Unit,
     onManageTriggersClick: (Task) -> Unit,
-    onEditTriggerClick: (Trigger) -> Unit
+    onEditTriggerClick: (Trigger) -> Unit,
+    onOpenLogsClick: () -> Unit = {}
 ) {
     val taskDataList by viewModel.tasksWithTriggers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -65,6 +66,13 @@ fun TasksComposeScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 actions = {
+                    IconButton(onClick = onOpenLogsClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.ReceiptLong,
+                            contentDescription = "Task & Sync Logs",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh tasks")
                     }

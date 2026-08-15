@@ -81,6 +81,7 @@ class SyncServiceNotifications(var mContext: Context) {
         val retryPendingIntent = PendingIntent.getBroadcast(mContext, taskid.toInt(), i, GenericSyncNotification.getFlags())
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.operation_failed))
             .setContentText(content)
             .setStyle(
@@ -126,6 +127,7 @@ class SyncServiceNotifications(var mContext: Context) {
         val retryPendingIntent = PendingIntent.getService(mContext, taskid.toInt(), i, GenericSyncNotification.getFlags())
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.operation_failed_cancelled))
             .setContentText(content)
             .setStyle(
@@ -164,6 +166,7 @@ class SyncServiceNotifications(var mContext: Context) {
     fun showSuccessNotification(title: String, content: String, notificationId: Int) {
         val builder = NotificationCompat.Builder(mContext, CHANNEL_SUCCESS_ID)
             .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.operation_success, title))
             .setContentText(content)
             .setStyle(

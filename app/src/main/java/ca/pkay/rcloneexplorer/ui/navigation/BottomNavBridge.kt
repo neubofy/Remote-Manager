@@ -17,17 +17,7 @@ object BottomNavBridge {
     ) {
         composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         composeView.setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFF3B82F6),
-                    secondary = Color(0xFF38BDF8),
-                    surface = Color(0xFF0F172A),
-                    surfaceVariant = Color(0xFF1E293B),
-                    background = Color(0xFF0B1120),
-                    onBackground = Color(0xFFF8FAFC),
-                    onSurface = Color(0xFFF8FAFC)
-                )
-            ) {
+            ca.pkay.rcloneexplorer.ui.theme.RemoteManagerTheme {
                 MainBottomNavigationBar(
                     currentTab = currentTab,
                     onTabSelected = onTabSelected,

@@ -83,6 +83,7 @@ public class StreamingService extends IntentService {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_streaming)
+                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.app_logo))
                 .setContentTitle(getString(R.string.streaming_service_notification_title))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(pendingIntent)
