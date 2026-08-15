@@ -59,9 +59,8 @@ object DirectoryCacheRepository {
                     val itemPath = obj.getString("path")
                     val size = obj.getLong("size")
                     val mimeType = obj.optString("mimeType", "")
-                    val isDir = obj.getBoolean("isDir")
-                    val modTime = obj.optLong("modTime", 0L)
-                    val rfcTime = if (modTime > 0) java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US).format(java.util.Date(modTime)) else ""
+                    val isDir = obj.optBoolean("isDir", false)
+                    val rfcTime = obj.optString("modTime", "")
                     val item = FileItem(remote, itemPath, name, size, rfcTime, mimeType, isDir, false)
                     items.add(item)
                 }

@@ -53,7 +53,7 @@ class BookmarksComposeFragment : Fragment() {
                         onBookmarkClick = { remoteName, path ->
                             val remote = rclone.getRemoteItemFromName(remoteName)
                             if (remote != null) {
-                                (activity as? MainActivity)?.startRemote(remote, false)
+                                (activity as? MainActivity)?.startRemote(remote, path, false)
                             }
                         },
                         onUnpinRemote = { remote ->

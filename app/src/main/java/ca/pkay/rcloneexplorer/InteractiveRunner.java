@@ -316,7 +316,12 @@ public class InteractiveRunner {
                         // Promote the current step node as main path
                         currentSteps = matchedStep.getFollowing();
                         if (null == currentSteps || 1 > currentSteps.size()) {
-                            FLog.d(TAG, "Run script finished");
+                            FLog.d(TAG, "Run script finished, draining trailing output");
+                            try {
+                                while (stdout.ready() && stdout.read() != -1) {
+                                    // drain available characters
+                                }
+                            } catch (Exception ignored) {}
                             break;
                         }
                     }

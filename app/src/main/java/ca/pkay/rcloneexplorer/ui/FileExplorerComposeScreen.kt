@@ -1128,7 +1128,15 @@ fun GridFileCard(
 ) {
     val context = LocalContext.current
     val mimeType = fileItem.mimeType
-    val isPhoto = mimeType != null && mimeType.startsWith("image/")
+    val isPhoto = !fileItem.isDir && ((mimeType != null && mimeType.startsWith("image/")) ||
+            fileItem.name.endsWith(".jpg", true) ||
+            fileItem.name.endsWith(".jpeg", true) ||
+            fileItem.name.endsWith(".png", true) ||
+            fileItem.name.endsWith(".webp", true) ||
+            fileItem.name.endsWith(".gif", true) ||
+            fileItem.name.endsWith(".bmp", true) ||
+            fileItem.name.endsWith(".heic", true) ||
+            fileItem.name.endsWith(".heif", true))
     val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
     val imageModel: Any? = remember(fileItem, showThumbnails, isPhoto) {
@@ -1284,7 +1292,15 @@ fun ListFileCard(
 ) {
     val context = LocalContext.current
     val mimeType = fileItem.mimeType
-    val isPhoto = mimeType != null && mimeType.startsWith("image/")
+    val isPhoto = !fileItem.isDir && ((mimeType != null && mimeType.startsWith("image/")) ||
+            fileItem.name.endsWith(".jpg", true) ||
+            fileItem.name.endsWith(".jpeg", true) ||
+            fileItem.name.endsWith(".png", true) ||
+            fileItem.name.endsWith(".webp", true) ||
+            fileItem.name.endsWith(".gif", true) ||
+            fileItem.name.endsWith(".bmp", true) ||
+            fileItem.name.endsWith(".heic", true) ||
+            fileItem.name.endsWith(".heif", true))
     val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
     val imageModel: Any? = remember(fileItem, showThumbnails, isPhoto) {

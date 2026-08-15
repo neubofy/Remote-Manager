@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class OauthHelper {
 
     private static final String TAG = "OAuthHelper";
-    private static final String regex = "go to the following link: ([^\\s]+)";
+    private static final String regex = "(?:(?:go to the following link:|Please go to:?)\\s*|)(https?://[^\\s'\"]+)";
     private static final OauthProcessToken oauthProcessToken = new OauthProcessToken();
 
     // Since OAuth always blocks port 53682, only a single authentication
@@ -158,15 +158,19 @@ public class OauthHelper {
     }
 
     static void launchBrowser(@NonNull Context context, @NonNull String url) {
-        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-        CustomTabsIntent customTabsIntent = builder.build();
         try {
+            CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+            CustomTabsIntent customTabsIntent = builder.build();
+            customTabsIntent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
             customTabsIntent.launchUrl(context, Uri.parse(url));
-        } catch (SecurityException e) {
-            // This happens if a buggy third party component is registered for
-            // browser intents with a non-exported activity.
-            // TODO: Fix this for Android TV
-            FLog.e(TAG, "Could not launch browser", e);
+        } catch (Exception e) {
+            try {
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url));
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception e2) {
+                FLog.e(TAG, "Could not launch browser", e2);
+            }
         }
     }
 

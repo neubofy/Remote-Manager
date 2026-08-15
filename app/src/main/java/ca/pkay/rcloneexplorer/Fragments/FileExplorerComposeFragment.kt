@@ -53,6 +53,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
 
     companion object {
         private const val ARG_REMOTE = "remote_param"
+        private const val ARG_INITIAL_PATH = "initial_path_param"
         private const val FILE_PICKER_UPLOAD_RESULT = 186
         private const val FILE_PICKER_DOWNLOAD_RESULT = 204
         const val STREAMING_INTENT_RESULT = 168
@@ -63,16 +64,21 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         const val OPEN_AS_AUDIO = 4
 
         @JvmStatic
-        fun newInstance(remoteItem: RemoteItem): FileExplorerComposeFragment {
+        @JvmOverloads
+        fun newInstance(remoteItem: RemoteItem, initialPath: String? = null): FileExplorerComposeFragment {
             val fragment = FileExplorerComposeFragment()
             val args = Bundle()
             args.putParcelable(ARG_REMOTE, remoteItem)
+            if (initialPath != null) {
+                args.putString(ARG_INITIAL_PATH, initialPath)
+            }
             fragment.arguments = args
             return fragment
         }
     }
 
     private var remote: RemoteItem? = null
+    private var initialPath: String? = null
     private val viewModel: FileExplorerViewModel by viewModels()
     private var pendingDownloadList: List<FileItem> = emptyList()
 
@@ -88,6 +94,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
             @Suppress("DEPRECATION")
             arguments?.getParcelable(ARG_REMOTE)
         }
+        initialPath = arguments?.getString(ARG_INITIAL_PATH)
     }
 
     fun onBackButtonPressed(): Boolean {
@@ -99,7 +106,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        remote?.let { viewModel.initRemote(it) }
+        remote?.let { viewModel.initRemote(it, initialPath) }
 
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)

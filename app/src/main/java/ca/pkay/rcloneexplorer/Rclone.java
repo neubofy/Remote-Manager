@@ -858,6 +858,52 @@ public class Rclone {
         }
     }
 
+    public static class ProcessInputStream extends InputStream {
+        private final Process process;
+        private final InputStream delegate;
+
+        public ProcessInputStream(Process process) {
+            this.process = process;
+            this.delegate = process.getInputStream();
+        }
+
+        @Override
+        public int read() throws IOException {
+            return delegate.read();
+        }
+
+        @Override
+        public int read(byte[] b) throws IOException {
+            return delegate.read(b);
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            return delegate.read(b, off, len);
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            return delegate.skip(n);
+        }
+
+        @Override
+        public int available() throws IOException {
+            return delegate.available();
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                delegate.close();
+            } finally {
+                if (process != null) {
+                    process.destroy();
+                }
+            }
+        }
+    }
+
     public InputStream getFileStream(RemoteItem remote, String path) {
         String remoteFilePath = remote.getName() + ":";
         if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
@@ -870,7 +916,7 @@ public class Rclone {
         try {
             Process process = getRuntimeProcess(command, env);
             if (process != null) {
-                return process.getInputStream();
+                return new ProcessInputStream(process);
             }
         } catch (IOException e) {
             FLog.e(TAG, "getFileStream: error running rclone cat", e);

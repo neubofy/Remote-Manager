@@ -89,24 +89,21 @@ class EphemeralTaskManager(private var mContext: Context) {
             EphemeralTaskManager(context).work(data.build(), "")
         }
 
-        private fun addFileItemToData(key: String, fileItem: FileItem, data: Data.Builder){
-            val parcel = Parcel.obtain()
-            try {
-                fileItem.writeToParcel(parcel, 0)
-                data.putByteArray(key, parcel.marshall())
-            } finally {
-                parcel.recycle()
+        private fun addFileItemToData(key: String, fileItem: FileItem, data: Data.Builder) {
+            val obj = org.json.JSONObject().apply {
+                put("remote", fileItem.remote.serialize())
+                put("path", fileItem.path)
+                put("name", fileItem.name)
+                put("size", fileItem.size)
+                put("modTime", fileItem.modTime)
+                put("mimeType", fileItem.mimeType ?: "")
+                put("isDir", fileItem.isDir)
             }
+            data.putString(key, obj.toString())
         }
 
-        private fun addRemoteItemToData(key: String, remote: RemoteItem, data: Data.Builder){
-            val parcel = Parcel.obtain()
-            try {
-                remote.writeToParcel(parcel, 0)
-                data.putByteArray(key, parcel.marshall())
-            } finally {
-                parcel.recycle()
-            }
+        private fun addRemoteItemToData(key: String, remote: RemoteItem, data: Data.Builder) {
+            data.putString(key, remote.serialize())
         }
     }
 

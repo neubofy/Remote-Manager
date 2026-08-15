@@ -18,10 +18,14 @@ import coil.fetch.Fetcher
 import coil.fetch.SourceResult
 import coil.request.Options
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.io.InputStream
+
+private val thumbnailFetchSemaphore = Semaphore(permits = 3)
 
 /**
  * Direct Coil Fetcher for Rclone items.
@@ -63,23 +67,13 @@ class RcloneThumbnailFetcher(
             return@withContext null
         }
 
-        // 4. Pre-check: If remote cloud file and device has no internet, skip network attempt immediately
-        val isRemoteCloud = !data.remote.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW)
-        if (isRemoteCloud && !isNetworkAvailable(context)) {
-            return@withContext null
-        }
+        // 4. Check if item is local storage / SAF and resolve local File directly
+        val isLocalRemote = data.remote.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW) || data.remote.isPathAlias
+        val localFile = if (isLocalRemote) resolveLocalFile(context, data) else null
 
-        // 5. Fetch stream directly via rclone cat / local file stream
-        try {
-            val rclone = Rclone(context)
-            val stream: InputStream? = if (data.remote.isRemoteType(RemoteItem.LOCAL)) {
-                File(data.path).takeIf { it.exists() }?.inputStream()
-            } else {
-                rclone.getFileStream(data.remote, data.path)
-            }
-
-            if (stream != null) {
-                stream.use { inStream ->
+        if (localFile != null && localFile.exists()) {
+            try {
+                localFile.inputStream().use { inStream ->
                     val opts = BitmapFactory.Options().apply {
                         inPreferredConfig = Bitmap.Config.RGB_565
                         inSampleSize = calculateInSampleSize(data.size)
@@ -93,8 +87,44 @@ class RcloneThumbnailFetcher(
                             return@withContext SourceResult(
                                 source = ImageSource(file = savedFile.toOkioPath(), diskCacheKey = savedFile.name),
                                 mimeType = "image/jpeg",
-                                dataSource = DataSource.NETWORK
+                                dataSource = DataSource.DISK
                             )
+                        }
+                    }
+                }
+            } catch (ignored: Exception) {}
+            return@withContext null
+        }
+
+        // 5. Pre-check: If remote cloud file and device has no internet, skip network attempt immediately
+        if (!isNetworkAvailable(context)) {
+            return@withContext null
+        }
+
+        // 6. Fetch stream directly via rclone cat for cloud remotes (throttled to max 3 concurrent processes)
+        try {
+            thumbnailFetchSemaphore.withPermit {
+                val rclone = Rclone(context)
+                val stream: InputStream? = rclone.getFileStream(data.remote, data.path)
+
+                if (stream != null) {
+                    stream.use { inStream ->
+                        val opts = BitmapFactory.Options().apply {
+                            inPreferredConfig = Bitmap.Config.RGB_565
+                            inSampleSize = calculateInSampleSize(data.size)
+                        }
+                        val bitmap = BitmapFactory.decodeStream(inStream, null, opts)
+                        if (bitmap != null) {
+                            ThumbnailCacheManager.saveThumbnailBitmap(context, data, bitmap)
+
+                            val savedFile = ThumbnailCacheManager.getCachedThumbnailFile(context, data)
+                            if (savedFile != null && savedFile.exists()) {
+                                return@withContext SourceResult(
+                                    source = ImageSource(file = savedFile.toOkioPath(), diskCacheKey = savedFile.name),
+                                    mimeType = "image/jpeg",
+                                    dataSource = DataSource.NETWORK
+                                )
+                            }
                         }
                     }
                 }
@@ -102,6 +132,22 @@ class RcloneThumbnailFetcher(
         } catch (ignored: Exception) {}
 
         null
+    }
+
+    private fun resolveLocalFile(context: Context, item: FileItem): File? {
+        val rawFile = File(item.path)
+        if (rawFile.exists() && rawFile.isAbsolute) return rawFile
+        val localPrefix = try { Rclone.getLocalRemotePathPrefix(item.remote, context) } catch (e: Exception) { "" }
+        if (localPrefix.isNotEmpty()) {
+            val f = File(localPrefix, item.path)
+            if (f.exists()) return f
+        }
+        val extStorage = android.os.Environment.getExternalStorageDirectory()
+        if (extStorage != null) {
+            val f = File(extStorage, item.path)
+            if (f.exists()) return f
+        }
+        return null
     }
 
     private fun calculateInSampleSize(fileSize: Long): Int {
@@ -133,7 +179,9 @@ class RcloneThumbnailFetcher(
                     data.name.endsWith(".png", true) ||
                     data.name.endsWith(".webp", true) ||
                     data.name.endsWith(".gif", true) ||
-                    data.name.endsWith(".bmp", true)
+                    data.name.endsWith(".bmp", true) ||
+                    data.name.endsWith(".heic", true) ||
+                    data.name.endsWith(".heif", true)
             return if (isImage) RcloneThumbnailFetcher(context, data, options) else null
         }
     }
