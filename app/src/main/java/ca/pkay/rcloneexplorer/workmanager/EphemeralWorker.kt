@@ -107,13 +107,18 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
 
             mNotificationManager?.setCancelId(id)
 
-            val cm = mContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-            val activeNetwork = cm.activeNetworkInfo
-            if (activeNetwork == null || !activeNetwork.isConnected) {
-                log("No network connection, aborting task.")
-                failureReason = FAILURE_REASON.NO_CONNECTION
-                postSync()
-                return Result.failure()
+            val isRemoteCloud = !remoteItem.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW)
+            if (isRemoteCloud) {
+                val cm = mContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                val network = cm.activeNetwork
+                val caps = if (network != null) cm.getNetworkCapabilities(network) else null
+                val isConnected = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                if (!isConnected) {
+                    log("No network connection, aborting cloud task.")
+                    failureReason = FAILURE_REASON.NO_CONNECTION
+                    postSync()
+                    return Result.failure()
+                }
             }
 
             // Execute task directly without any connection preconditions

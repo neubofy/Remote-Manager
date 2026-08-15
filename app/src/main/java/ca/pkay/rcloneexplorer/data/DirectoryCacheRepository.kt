@@ -32,6 +32,11 @@ object DirectoryCacheRepository {
         return items
     }
 
+    private fun getDiskCacheFileName(key: String): String {
+        val bytes = java.security.MessageDigest.getInstance("MD5").digest(key.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) } + ".json"
+    }
+
     fun getWithDiskFallback(context: Context, remote: RemoteItem, path: String): List<FileItem>? {
         val key = buildKey(remote.name, path)
         val inMem = memoryCache[key]
@@ -43,8 +48,7 @@ object DirectoryCacheRepository {
         // Fallback to disk cache if available
         try {
             val cacheDir = File(context.cacheDir, "directory_metadata_cache")
-            val sanitized = key.replace("[^a-zA-Z0-9_.-]".toRegex(), "_")
-            val file = File(cacheDir, "$sanitized.json")
+            val file = File(cacheDir, getDiskCacheFileName(key))
             if (file.exists()) {
                 val jsonStr = file.readText()
                 val jsonArr = JSONArray(jsonStr)
@@ -88,8 +92,7 @@ object DirectoryCacheRepository {
             if (!cacheDir.exists()) cacheDir.mkdirs()
             ensureDiskQuota(context, cacheDir)
 
-            val sanitized = key.replace("[^a-zA-Z0-9_.-]".toRegex(), "_")
-            val file = File(cacheDir, "$sanitized.json")
+            val file = File(cacheDir, getDiskCacheFileName(key))
             val jsonArr = JSONArray()
             for (f in files) {
                 val obj = JSONObject().apply {
@@ -124,9 +127,9 @@ object DirectoryCacheRepository {
         var totalSize = files.sumOf { it.length() }
         val maxBudget = try {
             androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
-                .getLong("pref_key_telemetry_cache_budget", 52428800L)
+                .getLong("pref_key_directory_cache_budget", 26214400L)
         } catch (e: Exception) {
-            52428800L
+            26214400L
         }
         if (totalSize > maxBudget) {
             // Sort disk cache files by lastModified ascending (oldest viewed first)
@@ -153,8 +156,7 @@ object DirectoryCacheRepository {
         accessTimestamps.remove(key)
         try {
             val cacheDir = File(context.cacheDir, "directory_metadata_cache")
-            val sanitized = key.replace("[^a-zA-Z0-9_.-]".toRegex(), "_")
-            val file = File(cacheDir, "$sanitized.json")
+            val file = File(cacheDir, getDiskCacheFileName(key))
             if (file.exists()) file.delete()
         } catch (ignored: Exception) {}
     }

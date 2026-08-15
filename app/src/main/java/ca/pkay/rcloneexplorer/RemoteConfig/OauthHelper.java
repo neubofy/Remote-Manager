@@ -207,16 +207,16 @@ public class OauthHelper {
          * @param context
          */
         public InitOauthStep(Context context) {
-            super(TRIGGER,  new OauthHelper.OauthAction(context));
+            super(TRIGGER, InteractiveRunner.Step.CONTAINS, InteractiveRunner.Step.INTERLEAVED, new OauthHelper.OauthAction(context));
         }
     }
 
     public static class OauthFinishStep extends InteractiveRunner.Step {
 
-        private static final String TRIGGER = "Got code\n";
+        private static final String TRIGGER = "Got code";
 
         public OauthFinishStep() {
-            super(TRIGGER, InteractiveRunner.Step.ENDS_WITH, InteractiveRunner.Step.STDOUT,
+            super(TRIGGER, InteractiveRunner.Step.CONTAINS, InteractiveRunner.Step.INTERLEAVED,
                     new InteractiveRunner.StringAction(""));
         }
 

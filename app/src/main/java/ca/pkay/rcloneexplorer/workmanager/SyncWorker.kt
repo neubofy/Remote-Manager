@@ -173,6 +173,18 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         SyncLog.info(mContext, mTitle, mContext.getString(R.string.operation_start_sync))
         if (sRcloneProcess != null) {
             val localProcessReference = sRcloneProcess!!
+            val stdoutThread = Thread {
+                try {
+                    BufferedReader(InputStreamReader(localProcessReference.inputStream)).use { stdoutReader ->
+                        while (stdoutReader.readLine() != null) {
+                            // Concurrently drain stdout so process never blocks
+                        }
+                    }
+                } catch (ignored: Exception) {}
+            }
+            stdoutThread.isDaemon = true
+            stdoutThread.start()
+
             try {
                 val reader = BufferedReader(InputStreamReader(localProcessReference.errorStream))
                 val iterator = reader.lineSequence().iterator()

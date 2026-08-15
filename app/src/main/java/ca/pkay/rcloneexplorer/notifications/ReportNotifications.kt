@@ -26,16 +26,28 @@ class ReportNotifications(var mContext: Context) {
     companion object {
         const val CHANNEL_REPORT_ID = "ca.pkay.rcexplorer.sync_report"
 
-        private const val NOTIFICATION_ID_SUCESS_REPORT = 90
-        private const val NOTIFICATION_ID_FAIL_REPORT = 91
+        const val NOTIFICATION_ID_SUCESS_REPORT = 90
+        const val NOTIFICATION_ID_FAIL_REPORT = 91
 
         const val REPORT_SUCCESS_DELETE_INTENT = "REPORT_SUCCESS_DELETE_INTENT"
-        const val REPORT_FAIL_DELETE_INTENT = "REPORT_SUCCESS_DELETE_INTENT"
+        const val REPORT_FAIL_DELETE_INTENT = "REPORT_FAIL_DELETE_INTENT"
 
         val NOTIFICATION_CACHE_SUCCESS_PREFERENCE = stringPreferencesKey("NOTIFICATION_CACHE_SUCCESS")
         val NOTIFICATION_CACHE_FAIL_PREFERENCE = stringPreferencesKey("NOTIFICATION_CACHE_FAIL")
         val NOTIFICATION_LAST_SUCCESS_ID_PREFERENCE = intPreferencesKey("NOTIFICATION_LAST_SUCCESS_ID")
         val NOTIFICATION_LAST_FAIL_ID_PREFERENCE = intPreferencesKey("NOTIFICATION_LAST_FAIL_ID")
+
+        fun clearAllNotificationDataStore(context: Context) {
+            runBlocking {
+                context.dataStore.edit { settings ->
+                    settings[NOTIFICATION_CACHE_SUCCESS_PREFERENCE] = ""
+                    settings[NOTIFICATION_CACHE_FAIL_PREFERENCE] = ""
+                }
+            }
+            val notificationManager = NotificationManagerCompat.from(context)
+            notificationManager.cancel(NOTIFICATION_ID_SUCESS_REPORT)
+            notificationManager.cancel(NOTIFICATION_ID_FAIL_REPORT)
+        }
     }
 
     fun lastSuccededNotification(id: Int) {

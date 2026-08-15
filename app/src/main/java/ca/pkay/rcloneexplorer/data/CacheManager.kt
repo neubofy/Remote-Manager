@@ -77,6 +77,9 @@ object CacheManager {
 
         // LRU Eviction: Collect all files and sort by lastModified ascending (oldest first)
         val allFiles = mutableListOf<File>()
+        if (context.cacheDir.exists()) {
+            collectFiles(context.cacheDir, allFiles)
+        }
         val cacheDirs = ContextCompat.getExternalCacheDirs(context)
         for (dir in cacheDirs) {
             if (dir != null && dir.exists()) {

@@ -64,11 +64,19 @@ object ThumbnailCacheManager {
         return file.exists() && file.length() > 0
     }
 
+    private var writeCounter = 0
+
     fun saveThumbnailBitmap(context: Context, fileItem: FileItem, bitmap: Bitmap) {
         try {
             val key = getCacheKey(fileItem)
             val dir = getThumbnailDir(context)
-            ensureBudget(context, dir)
+
+            writeCounter++
+            if (writeCounter % 20 == 0) {
+                backgroundIoExecutor.execute {
+                    ensureBudget(context, dir)
+                }
+            }
 
             val file = File(dir, "$key.thumb")
             val tempFile = File(dir, "$key.tmp")

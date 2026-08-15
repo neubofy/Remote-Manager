@@ -511,8 +511,6 @@ fun FileExplorerComposeScreen(
                                         fileItem = fileItem,
                                         isSelected = isSelected,
                                         showThumbnails = uiState.showThumbnails,
-                                        thumbnailServerAuth = uiState.thumbnailServerAuth,
-                                        thumbnailServerPort = uiState.thumbnailServerPort,
                                         onClick = {
                                             if (isInSelectMode) {
                                                 viewModel.toggleSelection(fileItem)
@@ -530,8 +528,6 @@ fun FileExplorerComposeScreen(
                                         fileItem = fileItem,
                                         isSelected = isSelected,
                                         showThumbnails = uiState.showThumbnails,
-                                        thumbnailServerAuth = uiState.thumbnailServerAuth,
-                                        thumbnailServerPort = uiState.thumbnailServerPort,
                                         onClick = {
                                             if (isInSelectMode) {
                                                 viewModel.toggleSelection(fileItem)
@@ -1126,8 +1122,6 @@ fun GridFileCard(
     fileItem: FileItem,
     isSelected: Boolean,
     showThumbnails: Boolean,
-    thumbnailServerAuth: String,
-    thumbnailServerPort: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onOptionsClick: () -> Unit
@@ -1135,49 +1129,13 @@ fun GridFileCard(
     val context = LocalContext.current
     val mimeType = fileItem.mimeType
     val isPhoto = mimeType != null && mimeType.startsWith("image/")
-
-    val isLocal = fileItem.remote.isRemoteType(RemoteItem.LOCAL) || fileItem.remote.isPathAlias
-    val isSaf = fileItem.remote.isRemoteType(RemoteItem.SAFW)
-
-    val maxThumbnailSize = remember {
-        androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
-            .getLong(context.getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
-    }
-
     val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
-    val imageModel: Any? = remember(fileItem, thumbnailServerAuth, thumbnailServerPort, maxThumbnailSize) {
-        if (!showThumbnails || !isPhoto || fileItem.size > maxThumbnailSize) {
+    val imageModel: Any? = remember(fileItem, showThumbnails, isPhoto) {
+        if (!showThumbnails || !isPhoto) {
             null
-        } else if (isLocal) {
-            val localPrefix = try { Rclone.getLocalRemotePathPrefix(fileItem.remote, context) } catch (e: Exception) { "" }
-            val rawFile = java.io.File(fileItem.path)
-            if (rawFile.exists() && rawFile.isAbsolute) {
-                rawFile
-            } else if (localPrefix.isNotEmpty() && java.io.File(localPrefix, fileItem.path).exists()) {
-                java.io.File(localPrefix, fileItem.path)
-            } else {
-                val extStorage = android.os.Environment.getExternalStorageDirectory()
-                val fallback = java.io.File(extStorage, fileItem.path)
-                if (fallback.exists()) fallback else if (localPrefix.isNotEmpty()) java.io.File(localPrefix, fileItem.path) else rawFile
-            }
-        } else if (isSaf) {
-            try {
-                SafAccessProvider.getDirectServer(context).getDocumentUri('/' + fileItem.path)
-            } catch (e: Exception) {
-                if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
-                    "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
-                } else null
-            }
         } else {
-            // First check: is it already cached locally on disk in ThumbnailCacheManager?
-            val cachedFile = ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCachedThumbnailFile(context, fileItem)
-            if (cachedFile != null) {
-                // Instant 0ms local file load - ZERO network request, ZERO server dependency
-                cachedFile
-            } else if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
-                "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
-            } else null
+            fileItem
         }
     }
 
@@ -1235,18 +1193,6 @@ fun GridFileCard(
                             .allowRgb565(true)
                             .crossfade(true)
                             .size(160, 160)
-                            .listener(
-                                onSuccess = { _, result ->
-                                    val drawable = result.drawable
-                                    if (imageModel is String && drawable is android.graphics.drawable.BitmapDrawable) {
-                                        ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.saveThumbnailBitmap(
-                                            context,
-                                            fileItem,
-                                            drawable.bitmap
-                                        )
-                                    }
-                                }
-                            )
                             .build(),
                         contentDescription = fileItem.name,
                         contentScale = ContentScale.Crop,
@@ -1332,8 +1278,6 @@ fun ListFileCard(
     fileItem: FileItem,
     isSelected: Boolean,
     showThumbnails: Boolean,
-    thumbnailServerAuth: String,
-    thumbnailServerPort: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onOptionsClick: () -> Unit
@@ -1341,48 +1285,13 @@ fun ListFileCard(
     val context = LocalContext.current
     val mimeType = fileItem.mimeType
     val isPhoto = mimeType != null && mimeType.startsWith("image/")
-    val isLocal = fileItem.remote.isRemoteType(RemoteItem.LOCAL) || fileItem.remote.isPathAlias
-    val isSaf = fileItem.remote.isRemoteType(RemoteItem.SAFW)
-
-    val maxThumbnailSize = remember {
-        androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
-            .getLong(context.getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
-    }
-
     val cacheSignature = remember(fileItem) { ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCacheKey(fileItem) }
 
-    val imageModel: Any? = remember(fileItem, thumbnailServerAuth, thumbnailServerPort, maxThumbnailSize) {
-        if (!showThumbnails || !isPhoto || fileItem.size > maxThumbnailSize) {
+    val imageModel: Any? = remember(fileItem, showThumbnails, isPhoto) {
+        if (!showThumbnails || !isPhoto) {
             null
-        } else if (isLocal) {
-            val localPrefix = try { Rclone.getLocalRemotePathPrefix(fileItem.remote, context) } catch (e: Exception) { "" }
-            val rawFile = java.io.File(fileItem.path)
-            if (rawFile.exists() && rawFile.isAbsolute) {
-                rawFile
-            } else if (localPrefix.isNotEmpty() && java.io.File(localPrefix, fileItem.path).exists()) {
-                java.io.File(localPrefix, fileItem.path)
-            } else {
-                val extStorage = android.os.Environment.getExternalStorageDirectory()
-                val fallback = java.io.File(extStorage, fileItem.path)
-                if (fallback.exists()) fallback else if (localPrefix.isNotEmpty()) java.io.File(localPrefix, fileItem.path) else rawFile
-            }
-        } else if (isSaf) {
-            try {
-                SafAccessProvider.getDirectServer(context).getDocumentUri('/' + fileItem.path)
-            } catch (e: Exception) {
-                if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
-                    "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
-                } else null
-            }
         } else {
-            // First check: is it already cached locally on disk in ThumbnailCacheManager?
-            val cachedFile = ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.getCachedThumbnailFile(context, fileItem)
-            if (cachedFile != null) {
-                // Instant 0ms local file load - ZERO network request, ZERO server dependency
-                cachedFile
-            } else if (thumbnailServerPort > 0 && thumbnailServerAuth.isNotEmpty()) {
-                "http://127.0.0.1:$thumbnailServerPort/$thumbnailServerAuth/${fileItem.remote.name}/${fileItem.path}"
-            } else null
+            fileItem
         }
     }
 
@@ -1430,7 +1339,7 @@ fun ListFileCard(
                 if (imageModel != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(imageModel)
+                            .data(fileItem)
                             .memoryCacheKey(cacheSignature)
                             .diskCacheKey(cacheSignature)
                             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -1439,18 +1348,6 @@ fun ListFileCard(
                             .allowRgb565(true)
                             .crossfade(true)
                             .size(160, 160)
-                            .listener(
-                                onSuccess = { _, result ->
-                                    val drawable = result.drawable
-                                    if (imageModel is String && drawable is android.graphics.drawable.BitmapDrawable) {
-                                        ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.saveThumbnailBitmap(
-                                            context,
-                                            fileItem,
-                                            drawable.bitmap
-                                        )
-                                    }
-                                }
-                            )
                             .build(),
                         contentDescription = fileItem.name,
                         contentScale = ContentScale.Crop,

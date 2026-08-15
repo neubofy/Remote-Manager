@@ -79,6 +79,10 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun initRemote(remote: RemoteItem) {
+        if (_uiState.value.remote?.name == remote.name && pathStack.isNotEmpty()) {
+            // Already initialized for this remote; preserve navigation stack and current path on configuration change (rotation)
+            return
+        }
         val rootPath = "//${remote.name}"
         val showHidden = prefs.getBoolean("pref_key_show_hidden_files", false)
         sortOrder = prefs.getInt("ca.pkay.rcexplorer.sort_order", SortDialog.ALPHA_ASCENDING)

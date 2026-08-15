@@ -7,21 +7,22 @@ import kotlinx.serialization.json.JsonNames
 import org.json.JSONObject
 
 @Serializable
-data class Task(var id: Long) {
+data class Task(
+    var id: Long = 0L,
     // Alternatives are kept for backwards compatibility with old, manual parser
-    @JsonNames("name") var title = ""
-    var remoteId = ""
-    var remoteType = 0
-    var remotePath = ""
-    var localPath = ""
-    @JsonNames("syncDirection") var direction = 0
-    var md5sum = TASK_MD5SUM_DEFAULT
-    var wifionly = TASK_WIFIONLY_DEFAULT
-    var filterId: Long? = null
-    var deleteExcluded = false
-    var onFailFollowup: Long? = null
+    @JsonNames("name") var title: String = "",
+    var remoteId: String = "",
+    var remoteType: Int = 0,
+    var remotePath: String = "",
+    var localPath: String = "",
+    @JsonNames("syncDirection") var direction: Int = 0,
+    var md5sum: Boolean = TASK_MD5SUM_DEFAULT,
+    var wifionly: Boolean = TASK_WIFIONLY_DEFAULT,
+    var filterId: Long? = null,
+    var deleteExcluded: Boolean = false,
+    var onFailFollowup: Long? = null,
     var onSuccessFollowup: Long? = null
-
+) {
     override fun toString(): String {
         return "$title: $remoteId: $remoteType: $remotePath: $localPath: $direction"
     }

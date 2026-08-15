@@ -342,7 +342,6 @@ public class Rclone {
 
             process.waitFor();
             if (process.exitValue() != 0) {
-                Toasty.error(context, context.getString(R.string.error_getting_remotes), Toast.LENGTH_SHORT, true).show();
                 logErrorOutput(process);
                 return new ArrayList<>();
             }
@@ -744,7 +743,16 @@ public class Rclone {
     public boolean hasBisyncListing(int taskId, String localPath, String remoteSection) {
         try {
             File taskDir = getTaskBisyncDir(taskId, localPath, remoteSection);
-            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".rclonelink"));
+            // Clean up any stale lock files in workdir if present
+            File[] lockFiles = taskDir.listFiles((dir, name) -> name.contains("lock"));
+            if (lockFiles != null) {
+                for (File lock : lockFiles) {
+                    if (System.currentTimeMillis() - lock.lastModified() > 120_000) {
+                        lock.delete();
+                    }
+                }
+            }
+            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".lst") || name.endsWith(".rclonelink"));
             return files != null && files.length > 0;
         } catch (Exception e) {
             return false;
@@ -848,6 +856,26 @@ public class Rclone {
             FLog.e(TAG, "sync: error starting rclone", e);
             return null;
         }
+    }
+
+    public InputStream getFileStream(RemoteItem remote, String path) {
+        String remoteFilePath = remote.getName() + ":";
+        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
+            remoteFilePath += getLocalRemotePathPrefix(remote, context) + "/";
+        }
+        remoteFilePath += path;
+
+        String[] command = createCommandWithOptions("cat", remoteFilePath);
+        String[] env = getRcloneEnv();
+        try {
+            Process process = getRuntimeProcess(command, env);
+            if (process != null) {
+                return process.getInputStream();
+            }
+        } catch (IOException e) {
+            FLog.e(TAG, "getFileStream: error running rclone cat", e);
+        }
+        return null;
     }
 
     public Process downloadFile(RemoteItem remote, FileItem downloadItem, String downloadPath) {

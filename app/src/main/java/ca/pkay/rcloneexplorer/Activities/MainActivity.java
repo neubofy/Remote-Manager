@@ -333,19 +333,24 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         boolean superOnBackPressed = true;
 
+        Fragment currentFragment = fragment;
+        if (currentFragment == null) {
+            currentFragment = getSupportFragmentManager().findFragmentById(R.id.flFragment);
+        }
+
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
-        } else if (fragment != null) {
-            if (fragment instanceof FileExplorerComposeFragment) {
-                if (((FileExplorerComposeFragment) fragment).onBackButtonPressed()) {
+        } else if (currentFragment != null) {
+            if (currentFragment instanceof FileExplorerComposeFragment) {
+                if (((FileExplorerComposeFragment) currentFragment).onBackButtonPressed()) {
                     return;
                 } else {
                     fragment = null;
                 }
-            } else if (fragment instanceof TasksComposeFragment) {
+            } else if (currentFragment instanceof TasksComposeFragment) {
                 startRemotesFragment();
                 superOnBackPressed = false;
-            } else if (fragment instanceof TriggerFragment) {
+            } else if (currentFragment instanceof TriggerFragment) {
                 startRemotesFragment();
                 superOnBackPressed = false;
             }
