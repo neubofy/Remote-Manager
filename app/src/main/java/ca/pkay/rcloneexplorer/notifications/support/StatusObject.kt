@@ -65,7 +65,8 @@ class StatusObject(var mContext: Context){
 
     fun getErrorMessage(): String {
         if(mLogline.has("msg") && mLogline.getString("level") == "error") {
-            return mLogline.getString("msg")
+            val rawMsg = mLogline.getString("msg")
+            return rawMsg.replace(Regex("\u001B\\[[;\\d]*m"), "").replace(Regex("\\[\\d+m"), "").trim()
         }
         return ""
     }

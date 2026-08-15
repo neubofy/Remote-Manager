@@ -214,14 +214,12 @@ public class TriggerService extends Service {
                     .setContentTitle(getText(R.string.notification_triggerservice_title))
                     .setContentText(getText(R.string.notification_triggerservice_description))
                     .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24)
-                    .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.app_logo))
                     .build();
         } else {
             NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
                     .setContentTitle(getText(R.string.notification_triggerservice_title))
                     .setContentText(getText(R.string.notification_triggerservice_description))
-                    .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24)
-                    .setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.app_logo));
+                    .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24);
             notification = notificationBuilder.build();
         }
         startForeground(SERVICE_NOTIFICATION_ID, notification);

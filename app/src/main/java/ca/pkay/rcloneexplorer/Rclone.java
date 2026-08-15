@@ -718,24 +718,63 @@ public class Rclone {
         return sync(remoteItem, localPath, remotePath, syncDirection, false, new ArrayList<>(0), false);
     }
 
+    public File getTaskBisyncDir(int taskId, String localPath, String remoteSection) {
+        String dirName;
+        if (taskId > 0) {
+            dirName = "task_" + taskId;
+        } else {
+            String raw = (localPath != null ? localPath : "") + "__" + (remoteSection != null ? remoteSection : "");
+            dirName = "task_" + Math.abs(raw.hashCode());
+        }
+        File dir = new File(new File(context.getFilesDir(), "bisync"), dirName);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
     public boolean hasBisyncListing() {
-        return hasBisyncListing("", "");
+        return hasBisyncListing(-1, "", "");
     }
 
     public boolean hasBisyncListing(String localPath, String remoteSection) {
+        return hasBisyncListing(-1, localPath, remoteSection);
+    }
+
+    public boolean hasBisyncListing(int taskId, String localPath, String remoteSection) {
         try {
-            File bisyncDir = new File(context.getFilesDir(), "bisync");
-            if (bisyncDir.exists() && bisyncDir.isDirectory()) {
-                File[] files = bisyncDir.listFiles((dir, name) -> name.endsWith(".lst"));
-                return files != null && files.length > 0;
-            }
-            return false;
+            File taskDir = getTaskBisyncDir(taskId, localPath, remoteSection);
+            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lst"));
+            return files != null && files.length > 0;
         } catch (Exception e) {
             return false;
         }
     }
 
+    public void cleanTaskBisyncDir(int taskId) {
+        try {
+            if (taskId > 0) {
+                File dir = new File(new File(context.getFilesDir(), "bisync"), "task_" + taskId);
+                if (dir.exists()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            f.delete();
+                        }
+                    }
+                    dir.delete();
+                }
+            }
+        } catch (Exception e) {
+            FLog.e(TAG, "Error cleaning bisync directory for task " + taskId, e);
+        }
+    }
+
     public Process sync(RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
+        return sync(-1, remoteItem, localPath, remotePath, syncDirection, useMD5Sum, filters, deleteExcluded);
+    }
+
+    public Process sync(int taskId, RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
         String[] command;
         String remoteName = remoteItem.getName();
         String localRemotePath = (remoteItem.isRemoteType(RemoteItem.LOCAL)) ? getLocalRemotePathPrefix(remoteItem, context)  + "/" : "";
@@ -781,14 +820,11 @@ public class Rclone {
             directionParameter.addAll(defaultParameter);
             command = createCommandWithOptions(directionParameter);
         } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL || syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) {
-            File bisyncWorkDir = new File(context.getFilesDir(), "bisync");
-            if (!bisyncWorkDir.exists()) {
-                bisyncWorkDir.mkdirs();
-            }
-            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing(localPath, remoteSection);
+            File taskBisyncDir = getTaskBisyncDir(taskId, localPath, remoteSection);
+            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing(taskId, localPath, remoteSection);
             Collections.addAll(directionParameter, "bisync", localPath, remoteSection);
             directionParameter.add("--workdir");
-            directionParameter.add(bisyncWorkDir.getAbsolutePath());
+            directionParameter.add(taskBisyncDir.getAbsolutePath());
             if (needsResync) {
                 directionParameter.add("--resync");
             }

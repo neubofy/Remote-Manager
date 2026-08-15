@@ -23,8 +23,8 @@ import ca.pkay.rcloneexplorer.Items.Task
 import ca.pkay.rcloneexplorer.Items.Trigger
 import java.util.ArrayList
 
-class DatabaseHandler(context: Context?) :
-    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+class DatabaseHandler(private val mContext: Context?) :
+    SQLiteOpenHelper(mContext, DATABASE_NAME, null, DATABASE_VERSION) {
 
     override fun onCreate(sqLiteDatabase: SQLiteDatabase) {
         sqLiteDatabase.execSQL(SQL_CREATE_TABLES_TASKS)
@@ -116,6 +116,13 @@ class DatabaseHandler(context: Context?) :
     }
 
     fun updateTask(taskToUpdate: Task) {
+        val oldTask = getTask(taskToUpdate.id)
+        val pathsOrDirectionChanged = oldTask == null ||
+                oldTask.localPath != taskToUpdate.localPath ||
+                oldTask.remotePath != taskToUpdate.remotePath ||
+                oldTask.remoteId != taskToUpdate.remoteId ||
+                oldTask.direction != taskToUpdate.direction
+
         val db = writableDatabase
         db.update(
             Task.TABLE_NAME,
@@ -123,6 +130,9 @@ class DatabaseHandler(context: Context?) :
             Task.COLUMN_NAME_ID + " = ?",
             arrayOf(taskToUpdate.id.toString())
         )
+        if (pathsOrDirectionChanged) {
+            mContext?.let { ca.pkay.rcloneexplorer.Rclone(it).cleanTaskBisyncDir(taskToUpdate.id.toInt()) }
+        }
     }
 
     private val taskProjection: Array<String>
@@ -174,6 +184,7 @@ class DatabaseHandler(context: Context?) :
             val selectionArgs = arrayOf(id.toString())
             val count = db.delete(Task.TABLE_NAME, selection, selectionArgs)
             db.setTransactionSuccessful()
+            mContext?.let { ca.pkay.rcloneexplorer.Rclone(it).cleanTaskBisyncDir(id.toInt()) }
             return count
         } finally {
             db.endTransaction()

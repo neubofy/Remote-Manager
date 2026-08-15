@@ -156,6 +156,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
         val taskFilter = if (mTask.filterId != null) mDatabase.getFilter(mTask.filterId!!) else null
         val taskFilterList = taskFilter?.getFilters() ?: ArrayList()
         sRcloneProcess = mRclone.sync(
+            mTask.id.toInt(),
             remoteItem,
             mTask.localPath,
             mTask.remotePath,

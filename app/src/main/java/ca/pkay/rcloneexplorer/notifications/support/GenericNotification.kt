@@ -88,7 +88,6 @@ abstract class GenericNotification(var mContext: Context) {
         createSummaryNotificationForFinished()
         val builder = NotificationCompat.Builder(mContext, sChannelId)
             .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(completeString))
             .setContentText(contentText)
             .setGroup(finishedGroup)
@@ -104,7 +103,6 @@ abstract class GenericNotification(var mContext: Context) {
             .setContentTitle(mContext.getString(completeString)) //set content text to support devices running API level < 24
             .setContentText(mContext.getString(completeString))
             .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setGroup(finishedGroup)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -115,7 +113,6 @@ abstract class GenericNotification(var mContext: Context) {
         createSummaryNotificationForFailed()
         val builder = NotificationCompat.Builder(mContext, sChannelId)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(failedString))
             .setContentText(contentText)
             .setGroup(failedGroup)
@@ -128,7 +125,6 @@ abstract class GenericNotification(var mContext: Context) {
             .setContentTitle(mContext.getString(failedString)) //set content text to support devices running API level < 24
             .setContentText(mContext.getString(failedString))
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setGroup(failedGroup)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -138,7 +134,6 @@ abstract class GenericNotification(var mContext: Context) {
     fun showConnectivityChangedNotification() {
         val builder = NotificationCompat.Builder(mContext, sChannelId)
             .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(canceledString))
             .setContentText(mContext.getString(R.string.wifi_connections_isnt_available))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

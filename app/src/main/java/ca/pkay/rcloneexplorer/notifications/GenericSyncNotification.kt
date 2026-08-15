@@ -39,7 +39,6 @@ class GenericSyncNotification(var mContext: Context) {
             channelID
         )
             .setSmallIcon(icon)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(title)
             .setContentText(content)
             .setContentIntent(pendingIntent)

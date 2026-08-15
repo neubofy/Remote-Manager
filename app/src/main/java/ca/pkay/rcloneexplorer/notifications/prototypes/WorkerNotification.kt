@@ -113,7 +113,6 @@ abstract class WorkerNotification(var mContext: Context) {
         )
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
-                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
                 .setContentTitle(serviceFailed)
                 .setContentText(content)
                 .setStyle(
@@ -143,7 +142,6 @@ abstract class WorkerNotification(var mContext: Context) {
         )
         val builder = NotificationCompat.Builder(mContext, CHANNEL_FAIL_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_error_24)
-                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
                 .setContentTitle(serviceCancelled)
                 .setContentText(content)
                 .setStyle(
@@ -162,7 +160,6 @@ abstract class WorkerNotification(var mContext: Context) {
     fun showSuccessNotification(title: String, content: String, notificationId: Int) {
         val builder = NotificationCompat.Builder(mContext, CHANNEL_SUCCESS_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
-                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
                 .setContentTitle(String.format(serviceSuccess, title))
                 .setContentText(content)
                 .setGroup(SUMMARY_GROUP)
@@ -171,7 +168,6 @@ abstract class WorkerNotification(var mContext: Context) {
 
         val summaryNotification = NotificationCompat.Builder(mContext, CHANNEL_SUCCESS_ID)
                 .setSmallIcon(R.drawable.ic_twotone_cloud_done_24)
-                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
                 .setContentTitle(String.format(serviceSuccess, title))
                 .setGroup(SUMMARY_GROUP)
                 .setGroupSummary(true)
