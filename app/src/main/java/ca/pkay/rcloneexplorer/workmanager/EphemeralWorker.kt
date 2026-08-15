@@ -75,7 +75,7 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     private var sConnectivityChanged = false
 
     private var sRcloneProcess: Process? = null
-    private val statusObject = StatusObject(mContext)
+    private var statusObject = StatusObject(mContext)
     private var failureReason = FAILURE_REASON.NO_FAILURE
     private var endNotificationAlreadyPosted = false
     private var silentRun = false
@@ -85,6 +85,7 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     private var mTitle: String = mNotificationManager?.initialTitle ?: ""
 
     override fun doWork(): Result {
+        statusObject = StatusObject(mContext) // Ensure fresh instance per run to fix Ghost Task Logs
         if (inputData.keyValueMap.containsKey(EPHEMERAL_TYPE)){
             val type = Type.valueOf(inputData.getString(EPHEMERAL_TYPE) ?: "")
             mNotificationManager = prepareNotificationManager(type)
@@ -105,6 +106,16 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             }
 
             mNotificationManager?.setCancelId(id)
+
+            val cm = mContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val activeNetwork = cm.activeNetworkInfo
+            if (activeNetwork == null || !activeNetwork.isConnected) {
+                log("No network connection, aborting task.")
+                failureReason = FAILURE_REASON.NO_CONNECTION
+                postSync()
+                return Result.failure()
+            }
+
             // Execute task directly without any connection preconditions
             when(type){
                 Type.DOWNLOAD -> {

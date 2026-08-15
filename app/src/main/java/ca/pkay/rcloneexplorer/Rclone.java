@@ -744,7 +744,7 @@ public class Rclone {
     public boolean hasBisyncListing(int taskId, String localPath, String remoteSection) {
         try {
             File taskDir = getTaskBisyncDir(taskId, localPath, remoteSection);
-            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lst"));
+            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".rclonelink"));
             return files != null && files.length > 0;
         } catch (Exception e) {
             return false;
