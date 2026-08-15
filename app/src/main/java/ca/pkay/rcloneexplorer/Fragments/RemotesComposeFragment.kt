@@ -31,12 +31,21 @@ class RemotesComposeFragment : Fragment() {
         }
     }
 
+    interface OnRemoteClickListener {
+        fun onRemoteClick(remote: RemoteItem)
+    }
+
+    interface AddRemoteToNavDrawer {
+        fun addRemoteToNavDrawer()
+        fun removeRemoteFromNavDrawer()
+    }
+
     private val viewModel: RemotesViewModel by viewModels()
-    private var remoteClickListener: RemotesFragment.OnRemoteClickListener? = null
+    private var remoteClickListener: OnRemoteClickListener? = null
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        if (context is RemotesFragment.OnRemoteClickListener) {
+        if (context is OnRemoteClickListener) {
             remoteClickListener = context
         }
     }
@@ -54,7 +63,7 @@ class RemotesComposeFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme {
+                ca.pkay.rcloneexplorer.ui.theme.RemoteManagerTheme {
                     RemotesComposeScreen(
                         viewModel = viewModel,
                         onRemoteClick = { remote ->

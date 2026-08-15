@@ -114,7 +114,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme {
+                ca.pkay.rcloneexplorer.ui.theme.RemoteManagerTheme {
                     FileExplorerComposeScreen(
                         viewModel = viewModel,
                         onFileClicked = { fileItem -> openFile(fileItem) },

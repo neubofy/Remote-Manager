@@ -3,7 +3,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/neubofy/Remote-Manager?include_prereleases&style=for-the-badge&color=blue)](https://github.com/neubofy/Remote-Manager/releases/latest)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neubofy/Remote-Manager/release.yml?branch=master&style=for-the-badge)](https://github.com/neubofy/Remote-Manager/actions)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-green.svg?style=for-the-badge)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-12%20--%2016-orange.svg?style=for-the-badge&logo=android)](https://github.com/neubofy/Remote-Manager)
+[![Android](https://img.shields.io/badge/Android-8.0%20--%2017-orange.svg?style=for-the-badge&logo=android)](https://github.com/neubofy/Remote-Manager)
 
 A lightweight, powerful, and secure cloud storage manager for Android, powered by **Rclone**.
 
@@ -16,7 +16,7 @@ A lightweight, powerful, and secure cloud storage manager for Android, powered b
 - ⚡ **Real-Time Sync**: Background sync with customizable triggers, filters, MD5 checksum verification, and Wi-Fi-only rules.
 - 🖼️ **Thumbnail Previews**: Fast, memory-efficient image thumbnails with persistent local disk caching.
 - 🔐 **End-to-End Encryption**: Supports Rclone Crypt remotes for full 256-bit client-side encryption.
-- 🚀 **High Performance**: Native 64-bit ARM (`arm64-v8a`) binary engine compiled directly from official Rclone sources.
+- 🚀 **High Performance**: Native 64-bit ARM (`arm64-v8a`) binary engine with 16KB page size alignment for Android 15+ kernels.
 - 📦 **In-App Updater**: Direct GitHub Releases update checks and one-tap installation.
 
 ---
@@ -26,8 +26,8 @@ A lightweight, powerful, and secure cloud storage manager for Android, powered b
 Grab the latest universal APK from [GitHub Releases](https://github.com/neubofy/Remote-Manager/releases/latest):
 
 - **File**: `RemoteManager_v1.0.0.apk`
-- **Target OS**: Android 12 through Android 16
-- **Architecture**: ARM64 (`arm64-v8a`)
+- **Target OS**: Android 8.0 (Oreo) through Android 17 (Future Ready)
+- **Architecture**: ARM64 (`arm64-v8a` with 16KB page alignment)
 
 ---
 

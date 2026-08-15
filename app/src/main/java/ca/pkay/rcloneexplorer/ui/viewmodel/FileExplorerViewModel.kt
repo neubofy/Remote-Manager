@@ -351,11 +351,11 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
             withContext(Dispatchers.IO) {
                 for (item in itemsToMove) {
                     try {
-                        val target = if (destinationPath.endsWith("/")) destinationPath + item.name else "$destinationPath/${item.name}"
-                        val cleanOld = item.path.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
-                        val cleanNew = target.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
+                        val cleanOld = Rclone.cleanPathString(currentRemote, item.path)
+                        val cleanDest = Rclone.cleanPathString(currentRemote, destinationPath)
+                        val cleanNew = if (cleanDest.isEmpty()) item.name else "$cleanDest/${item.name}"
                         val moved = rclone.moveTo(currentRemote, cleanOld, cleanNew)
-                        if (moved != null && moved) {
+                        if (moved == true) {
                             successCount++
                         }
                     } catch (e: Exception) {
@@ -364,7 +364,7 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
                 }
             }
             DirectoryCacheRepository.remove(currentRemote.name, destinationPath)
-            _uiState.update { it.copy(infoMessage = "Moved $successCount item(s)") }
+            _uiState.update { it.copy(infoMessage = "Moved $successCount item(s)", isLoading = false) }
             loadDirectory(destinationPath, clearSearch = false, forceRefresh = true, isNavigatingBack = false)
         }
     }
@@ -426,22 +426,27 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
         if (clip.isEmpty) return
         val currentRemote = _uiState.value.remote ?: return
         val currentPath = _uiState.value.currentPath
+
+        if (clip.operation == ClipboardOp.CUT && clip.sourceRemote != null && clip.sourceRemote.name != currentRemote.name) {
+            _uiState.update { it.copy(infoMessage = "Moving across different remotes is not supported. Please use Copy instead.") }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
+            var successCount = 0
             withContext(Dispatchers.IO) {
                 for (item in clip.items) {
                     try {
-                        val destLocation = if (currentPath == "//${currentRemote.name}" || currentPath.isEmpty()) {
-                            item.name
-                        } else {
-                            val clean = currentPath.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
-                            if (clean.isEmpty()) item.name else "$clean/${item.name}"
-                        }
                         if (clip.operation == ClipboardOp.COPY) {
-                            RcloneExtensions.copyItem(rclone, clip.sourceRemote ?: currentRemote, item, currentRemote, currentPath)
+                            val success = RcloneExtensions.copyItem(rclone, clip.sourceRemote ?: currentRemote, item, currentRemote, currentPath)
+                            if (success) successCount++
                         } else {
-                            val cleanOld = item.path.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
-                            rclone.moveTo(currentRemote, cleanOld, destLocation)
+                            val cleanOld = Rclone.cleanPathString(currentRemote, item.path)
+                            val cleanDest = Rclone.cleanPathString(currentRemote, currentPath)
+                            val cleanNew = if (cleanDest.isEmpty()) item.name else "$cleanDest/${item.name}"
+                            val success = rclone.moveTo(currentRemote, cleanOld, cleanNew)
+                            if (success == true) successCount++
                         }
                     } catch (e: Exception) {
                         FLog.e(TAG, "Paste clipboard error", e)
@@ -452,6 +457,7 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
                 FileClipboardManager.clear()
             }
             DirectoryCacheRepository.remove(currentRemote.name, currentPath)
+            _uiState.update { it.copy(infoMessage = "Pasted $successCount item(s)", isLoading = false) }
             loadDirectory(currentPath, clearSearch = false, forceRefresh = true)
         }
     }
@@ -459,18 +465,23 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
     fun duplicateSelected() {
         val items = _uiState.value.selectedItems.toList()
         val remote = _uiState.value.remote ?: return
+        val existingNames = _uiState.value.rawFiles.map { it.name }.toSet()
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, selectedItems = emptySet()) }
+            var successCount = 0
             withContext(Dispatchers.IO) {
                 for (item in items) {
                     try {
-                        RcloneExtensions.copyItem(rclone, remote, item, remote, _uiState.value.currentPath)
+                        val success = RcloneExtensions.duplicateItem(rclone, remote, item, existingNames)
+                        if (success) successCount++
                     } catch (e: Exception) {
                         FLog.e(TAG, "Duplicate error", e)
                     }
                 }
             }
             DirectoryCacheRepository.remove(remote.name, _uiState.value.currentPath)
+            _uiState.update { it.copy(infoMessage = "Duplicated $successCount item(s)", isLoading = false) }
             loadDirectory(_uiState.value.currentPath, clearSearch = false, forceRefresh = true)
         }
     }
@@ -506,21 +517,12 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun openDedupeSheet() {
-        val currentDisplay = _uiState.value.displayFiles
+        val currentRemote = _uiState.value.remote ?: return
+        val currentPath = _uiState.value.currentPath
         _uiState.update { it.copy(isDedupeSheetOpen = true, isScanningDuplicates = true, duplicateGroups = emptyList()) }
         viewModelScope.launch {
-            val groups = withContext(Dispatchers.Default) {
-                // Group by exact same name and size in current folder
-                val filesOnly = currentDisplay.filter { !it.isDir }
-                filesOnly.groupBy { "${it.name.lowercase()}_${it.size}" }
-                    .filter { it.value.size > 1 }
-                    .map { (key, list) ->
-                        DuplicateGroup(
-                            hashOrKey = key,
-                            size = list.first().size,
-                            items = list
-                        )
-                    }
+            val groups = withContext(Dispatchers.IO) {
+                RcloneExtensions.scanDuplicates(rclone, currentRemote, currentPath)
             }
             _uiState.update { it.copy(isScanningDuplicates = false, duplicateGroups = groups) }
         }
@@ -743,12 +745,8 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
     fun createDirectory(folderName: String) {
         val currentRemote = _uiState.value.remote ?: return
         val currentPath = _uiState.value.currentPath
-        val newDirPath = if (currentPath == "//${currentRemote.name}") {
-            folderName
-        } else {
-            val clean = currentPath.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
-            if (clean.isEmpty()) folderName else "$clean/$folderName"
-        }
+        val cleanPath = Rclone.cleanPathString(currentRemote, currentPath)
+        val newDirPath = if (cleanPath.isEmpty()) folderName else "$cleanPath/$folderName"
 
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
@@ -775,7 +773,7 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
         val currentPath = _uiState.value.currentPath
         if (fileItem.name == newName || newName.isBlank()) return
 
-        val cleanOld = fileItem.path.removePrefix("//${currentRemote.name}/").removePrefix("//${currentRemote.name}")
+        val cleanOld = Rclone.cleanPathString(currentRemote, fileItem.path)
         val cleanParent = cleanOld.substringBeforeLast('/', "")
         val cleanNew = if (cleanParent.isEmpty()) newName else "$cleanParent/$newName"
 

@@ -66,13 +66,10 @@ import ca.pkay.rcloneexplorer.Dialogs.InputDialog;
 import ca.pkay.rcloneexplorer.Dialogs.LoadingDialog;
 import ca.pkay.rcloneexplorer.Fragments.BookmarksComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.FileExplorerComposeFragment;
-import ca.pkay.rcloneexplorer.Fragments.LogFragment;
 import ca.pkay.rcloneexplorer.Fragments.LogsComposeFragment;
 import ca.pkay.rcloneexplorer.Fragments.PermissionFragment;
 import ca.pkay.rcloneexplorer.Fragments.RemotesComposeFragment;
-import ca.pkay.rcloneexplorer.Fragments.RemotesFragment;
 import ca.pkay.rcloneexplorer.Fragments.TasksComposeFragment;
-import ca.pkay.rcloneexplorer.Fragments.TasksFragment;
 import ca.pkay.rcloneexplorer.Fragments.TriggerFragment;
 import ca.pkay.rcloneexplorer.Items.RemoteItem;
 import ca.pkay.rcloneexplorer.R;
@@ -92,8 +89,8 @@ import es.dmoral.toasty.Toasty;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
-        RemotesFragment.OnRemoteClickListener,
-        RemotesFragment.AddRemoteToNavDrawer,
+        RemotesComposeFragment.OnRemoteClickListener,
+        RemotesComposeFragment.AddRemoteToNavDrawer,
         InputDialog.OnPositive {
 
     private static final String TAG = "MainActivity";
@@ -345,7 +342,7 @@ public class MainActivity extends AppCompatActivity
                 } else {
                     fragment = null;
                 }
-            } else if (fragment instanceof TasksComposeFragment || fragment instanceof TasksFragment) {
+            } else if (fragment instanceof TasksComposeFragment) {
                 startRemotesFragment();
                 superOnBackPressed = false;
             } else if (fragment instanceof TriggerFragment) {
@@ -1051,7 +1048,7 @@ public class MainActivity extends AppCompatActivity
             AppShortcutsHelper.populateAppShortcuts(context, rclone.getRemotes());
             pinRemotesToDrawer();
 
-            if (fragment instanceof RemotesFragment) {
+            if (fragment instanceof RemotesComposeFragment) {
                 startRemotesFragment();
             }
         }
