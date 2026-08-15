@@ -1300,7 +1300,9 @@ fun GridFileCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (fileItem.isDir) "Folder" else fileItem.humanReadableSize,
+                    text = if (fileItem.isDir) {
+                        if (!fileItem.humanReadableModTime.isNullOrEmpty()) fileItem.humanReadableModTime else "Folder"
+                    } else fileItem.humanReadableSize,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1493,14 +1495,18 @@ fun ListFileCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = " • ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (!fileItem.humanReadableModTime.isNullOrEmpty()) {
+                            Text(
+                                text = " • ",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Text(
-                        text = if (fileItem.isDir) "Directory" else (fileItem.humanReadableModTime ?: ""),
+                        text = if (fileItem.isDir) {
+                            if (!fileItem.humanReadableModTime.isNullOrEmpty()) "Folder • ${fileItem.humanReadableModTime}" else "Folder"
+                        } else (fileItem.humanReadableModTime ?: ""),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
