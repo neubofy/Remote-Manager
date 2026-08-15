@@ -167,7 +167,7 @@ public class Rclone {
         environmentValues.add("TMPDIR=" + tmpDir);
 
         // Ensure Rclone, Bisync, and Go cache/config directories point to internal app storage
-        File bisyncDir = new File(context.getCacheDir(), "bisync");
+        File bisyncDir = new File(context.getFilesDir(), "bisync");
         if (!bisyncDir.exists()) {
             bisyncDir.mkdirs();
         }
@@ -719,13 +719,17 @@ public class Rclone {
     }
 
     public boolean hasBisyncListing() {
+        return hasBisyncListing("", "");
+    }
+
+    public boolean hasBisyncListing(String localPath, String remoteSection) {
         try {
-            File bisyncDir = new File(context.getCacheDir(), "bisync");
-            if (!bisyncDir.exists() || !bisyncDir.isDirectory()) {
-                return false;
+            File bisyncDir = new File(context.getFilesDir(), "bisync");
+            if (bisyncDir.exists() && bisyncDir.isDirectory()) {
+                File[] files = bisyncDir.listFiles((dir, name) -> name.endsWith(".lst"));
+                return files != null && files.length > 0;
             }
-            File[] files = bisyncDir.listFiles((dir, name) -> name.endsWith(".lst"));
-            return files != null && files.length > 0;
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -777,8 +781,14 @@ public class Rclone {
             directionParameter.addAll(defaultParameter);
             command = createCommandWithOptions(directionParameter);
         } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL || syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) {
-            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing();
+            File bisyncWorkDir = new File(context.getFilesDir(), "bisync");
+            if (!bisyncWorkDir.exists()) {
+                bisyncWorkDir.mkdirs();
+            }
+            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing(localPath, remoteSection);
             Collections.addAll(directionParameter, "bisync", localPath, remoteSection);
+            directionParameter.add("--workdir");
+            directionParameter.add(bisyncWorkDir.getAbsolutePath());
             if (needsResync) {
                 directionParameter.add("--resync");
             }
