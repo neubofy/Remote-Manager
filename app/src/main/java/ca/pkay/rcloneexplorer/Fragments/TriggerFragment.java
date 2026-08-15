@@ -62,7 +62,7 @@ public class TriggerFragment extends Fragment {
         });
 
         view.findViewById(R.id.task_activity_button).setOnClickListener(v -> {
-            Fragment fragment = new TasksFragment();
+            Fragment fragment = TasksComposeFragment.Companion.newInstance();
             FragmentManager fm = ((FragmentActivity) requireContext()).getSupportFragmentManager();
             FragmentTransaction transaction = fm.beginTransaction();
             transaction.replace(R.id.flFragment, fragment);

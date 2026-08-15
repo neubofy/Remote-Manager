@@ -40,11 +40,18 @@ object ThumbnailCacheManager {
         return dir
     }
 
+    private val backgroundIoExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     fun getCachedThumbnailFile(context: Context, fileItem: FileItem): File? {
         val key = getCacheKey(fileItem)
         val file = File(getThumbnailDir(context), "$key.thumb")
         return if (file.exists() && file.length() > 0) {
-            file.setLastModified(System.currentTimeMillis())
+            // Asynchronously update timestamp in background for LRU pruning (zero UI thread blocking)
+            backgroundIoExecutor.execute {
+                try {
+                    file.setLastModified(System.currentTimeMillis())
+                } catch (ignored: Exception) {}
+            }
             file
         } else {
             null

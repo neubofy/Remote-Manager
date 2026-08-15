@@ -1194,12 +1194,16 @@ fun GridFileCard(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
             } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.surface
             }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 3.5.dp else 1.5.dp,
+            pressedElevation = 4.dp
         ),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f)
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(
@@ -1300,7 +1304,9 @@ fun GridFileCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (fileItem.isDir) "Folder" else fileItem.humanReadableSize,
+                    text = if (fileItem.isDir) {
+                        if (!fileItem.humanReadableModTime.isNullOrEmpty()) fileItem.humanReadableModTime else "Folder"
+                    } else fileItem.humanReadableSize,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1393,12 +1399,16 @@ fun ListFileCard(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
             } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                MaterialTheme.colorScheme.surface
             }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 3.dp else 1.5.dp,
+            pressedElevation = 4.dp
         ),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
@@ -1493,14 +1503,18 @@ fun ListFileCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = " • ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (!fileItem.humanReadableModTime.isNullOrEmpty()) {
+                            Text(
+                                text = " • ",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Text(
-                        text = if (fileItem.isDir) "Directory" else (fileItem.humanReadableModTime ?: ""),
+                        text = if (fileItem.isDir) {
+                            if (!fileItem.humanReadableModTime.isNullOrEmpty()) "Folder • ${fileItem.humanReadableModTime}" else "Folder"
+                        } else (fileItem.humanReadableModTime ?: ""),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

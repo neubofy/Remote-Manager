@@ -31,7 +31,7 @@ android {
         generatedDensities = []
         vectorDrawables.generatedDensities = []
         applicationId 'rm.neubofy.in'
-        minSdkVersion 31
+        minSdkVersion 26
         compileSdk 35
         targetSdkVersion 35
         versionCode 1

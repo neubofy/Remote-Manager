@@ -42,7 +42,26 @@ import com.google.android.material.textfield.TextInputLayout
 import java.util.Locale
 
 
-class DynamicRemoteConfigFragment(private val mProviderTitle: String, private val optionMap: HashMap<String, String>?) : Fragment() {
+class DynamicRemoteConfigFragment(
+    private var mProviderTitle: String = "",
+    private val optionMap: HashMap<String, String>? = null
+) : Fragment() {
+
+    companion object {
+        private const val ARG_PROVIDER_TITLE = "arg_provider_title"
+        private const val ARG_OPTION_MAP = "arg_option_map"
+
+        fun newInstance(providerTitle: String, optionMap: HashMap<String, String>? = null): DynamicRemoteConfigFragment {
+            return DynamicRemoteConfigFragment(providerTitle, optionMap).apply {
+                arguments = Bundle().apply {
+                    putString(ARG_PROVIDER_TITLE, providerTitle)
+                    if (optionMap != null) {
+                        putSerializable(ARG_OPTION_MAP, optionMap)
+                    }
+                }
+            }
+        }
+    }
 
     private val TAG = "DynamicRemoteConfigFragment"
     private lateinit var mContext: Context
@@ -62,6 +81,8 @@ class DynamicRemoteConfigFragment(private val mProviderTitle: String, private va
     private var mUseOauth = false
     private var mOptionFilter = ""
 
+    constructor() : this("", null)
+
     constructor(providerTitle: String) : this(providerTitle, null)
 
     init {
@@ -79,6 +100,19 @@ class DynamicRemoteConfigFragment(private val mProviderTitle: String, private va
         }
         setHasOptionsMenu(true)
         mContext = context as Context
+
+        if (mProviderTitle.isEmpty()) {
+            mProviderTitle = arguments?.getString(ARG_PROVIDER_TITLE) ?: savedInstanceState?.getString(ARG_PROVIDER_TITLE) ?: ""
+        }
+
+        if (mOptionMap.isEmpty()) {
+            @Suppress("UNCHECKED_CAST")
+            val savedMap = (arguments?.getSerializable(ARG_OPTION_MAP) ?: savedInstanceState?.getSerializable(ARG_OPTION_MAP)) as? HashMap<String, String>
+            if (savedMap != null) {
+                mIsEditTask = true
+                mOptionMap = savedMap
+            }
+        }
 
         rclone = Rclone(this.context)
         mProvider = rclone!!.getProvider(mProviderTitle)
@@ -99,7 +133,12 @@ class DynamicRemoteConfigFragment(private val mProviderTitle: String, private va
             -> true
             else -> false
         }
+    }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(ARG_PROVIDER_TITLE, mProviderTitle)
+        outState.putSerializable(ARG_OPTION_MAP, mOptionMap)
     }
 
     override fun onCreateView(

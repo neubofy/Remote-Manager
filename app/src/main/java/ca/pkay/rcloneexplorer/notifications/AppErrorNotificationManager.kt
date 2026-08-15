@@ -53,7 +53,6 @@ class AppErrorNotificationManager(var mContext: Context) {
 
         val b = NotificationCompat.Builder(mContext, APP_ERROR_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_twotone_error_24)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(mContext.resources, R.drawable.app_logo))
             .setContentTitle(mContext.getString(R.string.app_error_notification_alarmpermission_missing))
             .setContentText(mContext.getString(R.string.app_error_notification_alarmpermission_missing_description))
             /*.addAction(

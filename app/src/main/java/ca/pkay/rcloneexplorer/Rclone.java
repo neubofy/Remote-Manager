@@ -108,12 +108,12 @@ public class Rclone {
         return createCommand(command);
     }
 
-    private String[] createCommandWithOptions(String ...args) {
+    public String[] createCommandWithOptions(String ...args) {
         ArrayList<String> arguments = new ArrayList<String>(Arrays.asList(args));
         return createCommandWithOptions(arguments);
     }
 
-    private String[] createCommandWithOptions(ArrayList<String> args) {
+    public String[] createCommandWithOptions(ArrayList<String> args) {
         boolean loggingEnabled = PreferenceManager
                 .getDefaultSharedPreferences(context)
                 .getBoolean(context.getString(R.string.pref_key_logs), false);
@@ -126,21 +126,6 @@ public class Rclone {
         command.add(cachePath);
         command.add("--cache-db-path");
         command.add(cachePath);
-
-        /*
-
-        This fixed some bug. I dont know which one, but it breaks transfer of big files where
-        the checksum needs to be calculated.
-        This was probably due to some timeout for connecting misconfigured remotes.
-
-        command.add("--low-level-retries");
-        command.add("2");
-
-        command.add("--timeout");
-        command.add("5s");
-        command.add("--contimeout");
-        command.add("5s");
-        */
 
         command.add("--config");
         command.add(rcloneConf);
@@ -182,7 +167,7 @@ public class Rclone {
         environmentValues.add("TMPDIR=" + tmpDir);
 
         // Ensure Rclone, Bisync, and Go cache/config directories point to internal app storage
-        File bisyncDir = new File(context.getCacheDir(), "bisync");
+        File bisyncDir = new File(context.getFilesDir(), "bisync");
         if (!bisyncDir.exists()) {
             bisyncDir.mkdirs();
         }
@@ -610,12 +595,52 @@ public class Rclone {
         }
     }
 
+    @NonNull
+    public static String cleanPathString(@NonNull RemoteItem remote, @Nullable String rawPath) {
+        if (rawPath == null) {
+            return "";
+        }
+        String remoteName = remote.getName();
+        String path = rawPath.trim();
+        if (path.startsWith("//" + remoteName)) {
+            path = path.substring(("//" + remoteName).length());
+        } else if (path.startsWith(remoteName + ":")) {
+            path = path.substring((remoteName + ":").length());
+        }
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        return path;
+    }
+
+    @NonNull
+    public String buildRemoteLocation(@NonNull RemoteItem remote, @Nullable String rawPath) {
+        String remoteName = remote.getName();
+        String clean = cleanPathString(remote, rawPath);
+        String localPrefix = (remote.isRemoteType(RemoteItem.LOCAL) && !remote.isAlias() && !remote.isCrypt() && !remote.isCache())
+                ? getLocalRemotePathPrefix(remote, context) + "/" : "";
+        if (clean.isEmpty()) {
+            return remoteName + ":" + localPrefix;
+        }
+        return remoteName + ":" + localPrefix + clean;
+    }
+
+    @Nullable
+    public Process executeCommandWithOptions(String... args) {
+        String[] command = createCommandWithOptions(args);
+        String[] env = getRcloneEnv();
+        try {
+            return getRuntimeProcess(command, env);
+        } catch (IOException e) {
+            FLog.e(TAG, "executeCommandWithOptions: error starting rclone", e);
+            return null;
+        }
+    }
+
     public Process serve(int protocol, int port, boolean allowRemoteAccess, @Nullable String user,
                          @Nullable String password, @NonNull RemoteItem remote, @Nullable String servePath,
                          @Nullable String baseUrl) {
-        String remoteName = remote.getName();
-        String localRemotePath = (remote.isRemoteType(RemoteItem.LOCAL)) ? getLocalRemotePathPrefix(remote, context)  + "/" : "";
-        String path = (servePath.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath : remoteName + ":" + localRemotePath + servePath;
+        String path = buildRemoteLocation(remote, servePath);
         String address;
         String commandProtocol;
 
@@ -693,20 +718,63 @@ public class Rclone {
         return sync(remoteItem, localPath, remotePath, syncDirection, false, new ArrayList<>(0), false);
     }
 
+    public File getTaskBisyncDir(int taskId, String localPath, String remoteSection) {
+        String dirName;
+        if (taskId > 0) {
+            dirName = "task_" + taskId;
+        } else {
+            String raw = (localPath != null ? localPath : "") + "__" + (remoteSection != null ? remoteSection : "");
+            dirName = "task_" + Math.abs(raw.hashCode());
+        }
+        File dir = new File(new File(context.getFilesDir(), "bisync"), dirName);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
     public boolean hasBisyncListing() {
+        return hasBisyncListing(-1, "", "");
+    }
+
+    public boolean hasBisyncListing(String localPath, String remoteSection) {
+        return hasBisyncListing(-1, localPath, remoteSection);
+    }
+
+    public boolean hasBisyncListing(int taskId, String localPath, String remoteSection) {
         try {
-            File bisyncDir = new File(context.getCacheDir(), "bisync");
-            if (!bisyncDir.exists() || !bisyncDir.isDirectory()) {
-                return false;
-            }
-            File[] files = bisyncDir.listFiles((dir, name) -> name.endsWith(".lst"));
+            File taskDir = getTaskBisyncDir(taskId, localPath, remoteSection);
+            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".rclonelink"));
             return files != null && files.length > 0;
         } catch (Exception e) {
             return false;
         }
     }
 
+    public void cleanTaskBisyncDir(int taskId) {
+        try {
+            if (taskId > 0) {
+                File dir = new File(new File(context.getFilesDir(), "bisync"), "task_" + taskId);
+                if (dir.exists()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            f.delete();
+                        }
+                    }
+                    dir.delete();
+                }
+            }
+        } catch (Exception e) {
+            FLog.e(TAG, "Error cleaning bisync directory for task " + taskId, e);
+        }
+    }
+
     public Process sync(RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
+        return sync(-1, remoteItem, localPath, remotePath, syncDirection, useMD5Sum, filters, deleteExcluded);
+    }
+
+    public Process sync(int taskId, RemoteItem remoteItem, String localPath, String remotePath, int syncDirection, boolean useMD5Sum, ArrayList<FilterEntry> filters, boolean deleteExcluded) {
         String[] command;
         String remoteName = remoteItem.getName();
         String localRemotePath = (remoteItem.isRemoteType(RemoteItem.LOCAL)) ? getLocalRemotePathPrefix(remoteItem, context)  + "/" : "";
@@ -752,8 +820,11 @@ public class Rclone {
             directionParameter.addAll(defaultParameter);
             command = createCommandWithOptions(directionParameter);
         } else if (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL || syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) {
-            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing();
+            File taskBisyncDir = getTaskBisyncDir(taskId, localPath, remoteSection);
+            boolean needsResync = (syncDirection == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL) || !hasBisyncListing(taskId, localPath, remoteSection);
             Collections.addAll(directionParameter, "bisync", localPath, remoteSection);
+            directionParameter.add("--workdir");
+            directionParameter.add(taskBisyncDir.getAbsolutePath());
             if (needsResync) {
                 directionParameter.add("--resync");
             }
@@ -810,24 +881,18 @@ public class Rclone {
     }
 
     public Process uploadFile(RemoteItem remote, String uploadPath, String uploadFile) {
-        String remoteName = remote.getName();
+        String cleanUploadPath = cleanPathString(remote, uploadPath);
         String path;
         String[] command;
-        String localRemotePath;
-
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
 
         File file = new File(uploadFile);
         if (file.isDirectory()) {
             int index = uploadFile.lastIndexOf('/');
             String dirName = uploadFile.substring(index + 1);
-            path = (uploadPath.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath + dirName : remoteName + ":" + localRemotePath + uploadPath + "/" + dirName;
+            String fullPath = cleanUploadPath.isEmpty() ? dirName : cleanUploadPath + "/" + dirName;
+            path = buildRemoteLocation(remote, fullPath);
         } else {
-            path = (uploadPath.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath : remoteName + ":" + localRemotePath + uploadPath;
+            path = buildRemoteLocation(remote, cleanUploadPath);
         }
 
         command = createCommandWithOptions("copy", uploadFile, path, "--transfers", "1", "--stats=1s", "--stats-log-level", "NOTICE", "--use-json-log");
@@ -839,7 +904,6 @@ public class Rclone {
             FLog.e(TAG, "uploadFile: error starting rclone", e);
             return null;
         }
-
     }
 
     // Can't pass \u0000 as cmd arg - encode like rclone with U+2400
@@ -864,21 +928,15 @@ public class Rclone {
 
     public Process deleteItems(RemoteItem remote, FileItem deleteItem) {
         String[] command;
-        String filePath;
+        String remoteName = remote.getName();
+        String localRemotePath = (remote.isRemoteType(RemoteItem.LOCAL)) ? getLocalRemotePathPrefix(remote, context)  + "/" : "";
+        String filePath = remoteName + ":" + localRemotePath + deleteItem.getPath();
         Process process = null;
-        String localRemotePath;
 
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
-
-        filePath = remote.getName() + ":" + localRemotePath + deleteItem.getPath();
         if (deleteItem.isDir()) {
             command = createCommandWithOptions("purge", filePath);
         } else {
-            command = createCommandWithOptions("deletefile", filePath);
+            command = createCommandWithOptions("delete", filePath);
         }
 
         String[] env = getRcloneEnv();
@@ -891,16 +949,9 @@ public class Rclone {
     }
 
     public Boolean makeDirectory(RemoteItem remote, String path) {
-        String localRemotePath;
-
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
-
-        String newDir = remote.getName() + ":" + localRemotePath + path;
-        String[] command = createCommandWithOptions("mkdir", newDir);
+        String cleanDir = cleanPathString(remote, path);
+        String targetDir = buildRemoteLocation(remote, cleanDir);
+        String[] command = createCommandWithOptions("mkdir", targetDir);
         String[] env = getRcloneEnv();
         try {
             Process process = getRuntimeProcess(command, env);
@@ -909,31 +960,32 @@ public class Rclone {
                 logErrorOutput(process);
                 return false;
             }
+            return true;
         } catch (IOException | InterruptedException e) {
             FLog.e(TAG, "makeDirectory: error running rclone", e);
             return false;
+        }
+    }
+
+    public boolean isDirectoryEmpty(RemoteItem remote, String path) {
+        List<FileItem> items = getDirectoryContent(remote, path, false);
+        if (items != null) {
+            return items.isEmpty();
         }
         return true;
     }
 
     public Process moveTo(RemoteItem remote, FileItem moveItem, String newLocation) {
-        String remoteName = remote.getName();
-        String[] command;
-        String oldFilePath;
-        String newFilePath;
-        Process process = null;
-        String localRemotePath;
+        String cleanNewLocation = cleanPathString(remote, newLocation);
+        String cleanOldPath = cleanPathString(remote, moveItem.getPath());
+        String oldFilePath = buildRemoteLocation(remote, cleanOldPath);
+        String newFilePath = cleanNewLocation.isEmpty()
+                ? buildRemoteLocation(remote, moveItem.getName())
+                : buildRemoteLocation(remote, cleanNewLocation + "/" + moveItem.getName());
 
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
-
-        oldFilePath = remoteName + ":" + localRemotePath + moveItem.getPath();
-        newFilePath = (newLocation.compareTo("//" + remoteName) == 0) ? remoteName + ":" + localRemotePath + moveItem.getName() : remoteName + ":" + localRemotePath + newLocation + "/" + moveItem.getName();
-        command = createCommandWithOptions("moveto", oldFilePath, newFilePath);
+        String[] command = createCommandWithOptions("moveto", oldFilePath, newFilePath);
         String[] env = getRcloneEnv();
+        Process process = null;
         try {
             process = getRuntimeProcess(command, env);
         } catch (IOException e) {
@@ -944,17 +996,10 @@ public class Rclone {
     }
 
     public Boolean moveTo(RemoteItem remote, String oldFile, String newFile) {
-        String remoteName = remote.getName();
-        String localRemotePath;
-
-        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
-            localRemotePath = getLocalRemotePathPrefix(remote, context) + "/";
-        } else {
-            localRemotePath = "";
-        }
-
-        String oldFilePath = remoteName + ":" + localRemotePath + oldFile;
-        String newFilePath = remoteName + ":" + localRemotePath + newFile;
+        String cleanOld = cleanPathString(remote, oldFile);
+        String cleanNew = cleanPathString(remote, newFile);
+        String oldFilePath = buildRemoteLocation(remote, cleanOld);
+        String newFilePath = buildRemoteLocation(remote, cleanNew);
         String[] command = createCommandWithOptions("moveto", oldFilePath, newFilePath);
         String[] env = getRcloneEnv();
         try {
@@ -964,11 +1009,11 @@ public class Rclone {
                 logErrorOutput(process);
                 return false;
             }
+            return true;
         } catch (IOException | InterruptedException e) {
-            FLog.e(TAG, "moveTo: error running rclone", e);
+            FLog.e(TAG, "moveTo: error moving file", e);
             return false;
         }
-        return true;
     }
 
     public InputStream downloadToPipe(String rclonePath) throws IOException {

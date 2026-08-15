@@ -50,18 +50,12 @@ object RcloneExtensions {
         destPath: String
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val sourcePath = buildRemotePath(sourceRemote, sourceItem.path)
-            val destLocation = if (destPath == "//" + destRemote.name || destPath.isEmpty()) {
-                "${destRemote.name}:"
-            } else {
-                "${destRemote.name}:$destPath"
-            }
-
-            val fullDest = if (sourceItem.isDir) {
-                if (destLocation.endsWith(":")) "$destLocation${sourceItem.name}" else "$destLocation/${sourceItem.name}"
-            } else {
-                if (destLocation.endsWith(":")) "$destLocation${sourceItem.name}" else "$destLocation/${sourceItem.name}"
-            }
+            val cleanSource = Rclone.cleanPathString(sourceRemote, sourceItem.path)
+            val sourcePath = rclone.buildRemoteLocation(sourceRemote, cleanSource)
+            
+            val cleanDest = Rclone.cleanPathString(destRemote, destPath)
+            val fullDestRelative = if (cleanDest.isEmpty()) sourceItem.name else "$cleanDest/${sourceItem.name}"
+            val fullDest = rclone.buildRemoteLocation(destRemote, fullDestRelative)
 
             val command = if (sourceItem.isDir) {
                 arrayOf("copy", sourcePath, fullDest, "--transfers", "2", "--stats=1s")
@@ -69,7 +63,7 @@ object RcloneExtensions {
                 arrayOf("copyto", sourcePath, fullDest)
             }
 
-            val process = executeRcloneCommand(rclone, *command)
+            val process = rclone.executeCommandWithOptions(*command)
             process?.waitFor()
             val success = process != null && process.exitValue() == 0
             if (!success && process != null) {
@@ -94,10 +88,11 @@ object RcloneExtensions {
         try {
             val oldName = item.name
             val newName = generateDuplicateName(oldName, item.isDir, existingNames)
-            val parentPath = item.path.substringBeforeLast('/', "")
-            val sourceRemotePath = buildRemotePath(remote, item.path)
+            val cleanItemPath = Rclone.cleanPathString(remote, item.path)
+            val parentPath = cleanItemPath.substringBeforeLast('/', "")
+            val sourceRemotePath = rclone.buildRemoteLocation(remote, cleanItemPath)
             val newRelativePath = if (parentPath.isEmpty()) newName else "$parentPath/$newName"
-            val destRemotePath = buildRemotePath(remote, newRelativePath)
+            val destRemotePath = rclone.buildRemoteLocation(remote, newRelativePath)
 
             val command = if (item.isDir) {
                 arrayOf("copy", sourceRemotePath, destRemotePath)
@@ -105,7 +100,7 @@ object RcloneExtensions {
                 arrayOf("copyto", sourceRemotePath, destRemotePath)
             }
 
-            val process = executeRcloneCommand(rclone, *command)
+            val process = rclone.executeCommandWithOptions(*command)
             process?.waitFor()
             val success = process != null && process.exitValue() == 0
             if (!success && process != null) {
@@ -134,12 +129,13 @@ object RcloneExtensions {
                 results.add(item to true)
                 continue
             }
-            val parentPath = item.path.substringBeforeLast('/', "")
-            val oldRemotePath = buildRemotePath(remote, item.path)
+            val cleanItemPath = Rclone.cleanPathString(remote, item.path)
+            val parentPath = cleanItemPath.substringBeforeLast('/', "")
+            val oldRemotePath = rclone.buildRemoteLocation(remote, cleanItemPath)
             val newRelativePath = if (parentPath.isEmpty()) newName else "$parentPath/$newName"
-            val newRemotePath = buildRemotePath(remote, newRelativePath)
+            val newRemotePath = rclone.buildRemoteLocation(remote, newRelativePath)
 
-            val process = executeRcloneCommand(rclone, "moveto", oldRemotePath, newRemotePath)
+            val process = rclone.executeCommandWithOptions("moveto", oldRemotePath, newRemotePath)
             process?.waitFor()
             val success = process != null && process.exitValue() == 0
             results.add(item to success)
@@ -156,8 +152,9 @@ object RcloneExtensions {
         path: String
     ): List<DuplicateGroup> = withContext(Dispatchers.IO) {
         try {
-            val remotePath = buildRemotePath(remote, path.removePrefix("//" + remote.name))
-            val process = executeRcloneCommand(rclone, "lsjson", "-R", "--max-depth", "4", remotePath) ?: return@withContext emptyList()
+            val cleanPath = Rclone.cleanPathString(remote, path)
+            val remotePath = rclone.buildRemoteLocation(remote, cleanPath)
+            val process = rclone.executeCommandWithOptions("lsjson", "-R", "--max-depth", "4", remotePath) ?: return@withContext emptyList()
 
             val reader = BufferedReader(InputStreamReader(process.inputStream))
             val output = StringBuilder()
@@ -182,12 +179,12 @@ object RcloneExtensions {
                 val modTime = obj.optString("ModTime", "")
                 val mimeType = obj.optString("MimeType", "")
 
-                val fullPath = if (path == "//" + remote.name || path.isEmpty()) itemPath else "${path.trimEnd('/')}/$itemPath"
+                val fullPath = if (cleanPath.isEmpty()) itemPath else "$cleanPath/$itemPath"
                 fileItems.add(FileItem(remote, fullPath, name, size, modTime, mimeType, false, false))
             }
 
             // Group by size & name or content length
-            val groups = fileItems.groupBy { "${it.name}_${it.size}" }
+            val groups = fileItems.groupBy { "${it.name.lowercase()}_${it.size}" }
                 .filter { it.value.size > 1 }
                 .map { (key, list) ->
                     DuplicateGroup(
@@ -201,27 +198,6 @@ object RcloneExtensions {
             FLog.e(TAG, "scanDuplicates error", e)
             emptyList()
         }
-    }
-
-    /**
-     * Helper to run an arbitrary Rclone command with environment variables.
-     */
-    private fun executeRcloneCommand(rclone: Rclone, vararg args: String): Process? {
-        return try {
-            val method = Rclone::class.java.getDeclaredMethod("createCommandWithOptions", Array<String>::class.java)
-            method.isAccessible = true
-            val command = method.invoke(rclone, args) as Array<String>
-            val env = rclone.getRcloneEnv()
-            Runtime.getRuntime().exec(command, env)
-        } catch (e: Exception) {
-            FLog.e(TAG, "executeRcloneCommand failed", e)
-            null
-        }
-    }
-
-    private fun buildRemotePath(remote: RemoteItem, path: String): String {
-        val cleanPath = path.removePrefix("//" + remote.name).trimStart('/')
-        return if (cleanPath.isEmpty()) "${remote.name}:" else "${remote.name}:$cleanPath"
     }
 
     fun generateDuplicateName(originalName: String, isDir: Boolean, existingNames: Set<String>): String {

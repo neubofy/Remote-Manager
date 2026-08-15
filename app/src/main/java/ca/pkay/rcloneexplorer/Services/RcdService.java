@@ -109,7 +109,6 @@ public class RcdService extends Service implements RcloneRcd.JobsUpdateHandler {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.app_logo))
                 .setContentTitle(getString(R.string.rcd_service_notification_running_in_background))
                 .setContentText(statusLine)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -183,7 +182,6 @@ public class RcdService extends Service implements RcloneRcd.JobsUpdateHandler {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.app_logo))
                 .setContentTitle(getString(R.string.rcd_service_notification_running_in_background))
                 .setContentText(getString(R.string.rcd_service_notification_no_active_jobs))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
