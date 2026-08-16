@@ -140,6 +140,12 @@ public class Rclone {
 
     public String[] getRcloneEnv(String... overwriteOptions) {
         ArrayList<String> environmentValues = new ArrayList<>();
+
+        // Inherit all parent system environment variables (PATH, ANDROID_ROOT, ANDROID_DATA, etc.)
+        for (java.util.Map.Entry<String, String> entry : System.getenv().entrySet()) {
+            environmentValues.add(entry.getKey() + "=" + entry.getValue());
+        }
+
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
 
         boolean proxyEnabled = pref.getBoolean(context.getString(R.string.pref_key_use_proxy), false);
@@ -184,11 +190,14 @@ public class Rclone {
         Iterator<String> envVarIter = environmentValues.iterator();
         while(envVarIter.hasNext()){
             String envVar = envVarIter.next();
-            String optionName = envVar.substring(0, envVar.indexOf('='));
-            for(String overwrite : overwriteOptions){
-                if(overwrite.startsWith(optionName)) {
-                    envVarIter.remove();
-                    environmentValues.add(overwrite);
+            int eqIdx = envVar.indexOf('=');
+            if (eqIdx > 0) {
+                String optionName = envVar.substring(0, eqIdx);
+                for(String overwrite : overwriteOptions){
+                    if(overwrite.startsWith(optionName + "=")) {
+                        envVarIter.remove();
+                        environmentValues.add(overwrite);
+                    }
                 }
             }
         }
@@ -484,18 +493,20 @@ public class Rclone {
 
     @Nullable
     public Process configCreate(List<String> options) {
-        // https://rclone.org/commands/rclone_config_create/
-        // Pass --obscure via createCommand flag so positional parameters remain strictly valid
-        return config("create", options);
+        ArrayList<String> opt = new ArrayList<>(options);
+        opt.add("--obscure");
+        return config("create", opt);
     }
 
     @Nullable
     public Process configUpdate(List<String> options) {
-        return config("update", options);
+        ArrayList<String> opt = new ArrayList<>(options);
+        opt.add("--obscure");
+        return config("update", opt);
     }
 
     public Process config(String task, List<String> options) {
-        String[] command = createCommand("--obscure", "config", task);
+        String[] command = createCommand("config", task);
         String[] opt = options.toArray(new String[0]);
         String[] commandWithOptions = new String[command.length + options.size()];
 

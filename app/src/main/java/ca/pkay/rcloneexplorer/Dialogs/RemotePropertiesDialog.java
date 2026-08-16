@@ -226,8 +226,6 @@ public class RemotePropertiesDialog extends DialogFragment {
             Context appContext = context.getApplicationContext();
             final Process process = rclone.reconnectRemote(remoteItem);
             if (process != null) {
-                OauthHelper.UrlAuthThread urlAuthThread = new OauthHelper.UrlAuthThread(process, appContext);
-                urlAuthThread.start();
                 // Since this is invoked on already existing remotes, we need
                 // to confirm renewing the token.
                 //

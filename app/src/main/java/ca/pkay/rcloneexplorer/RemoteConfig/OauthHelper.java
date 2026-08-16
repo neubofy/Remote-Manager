@@ -225,7 +225,7 @@ public class OauthHelper {
 
         @Override
         public String getInput() {
-            return "";
+            return null;
         }
     }
 
@@ -248,7 +248,15 @@ public class OauthHelper {
 
         public OauthFinishStep() {
             super(TRIGGER, InteractiveRunner.Step.CONTAINS, InteractiveRunner.Step.INTERLEAVED,
-                    new InteractiveRunner.StringAction(""));
+                    new InteractiveRunner.Action() {
+                        @Override
+                        public void onTrigger(String cliBuffer) {}
+
+                        @Override
+                        public String getInput() {
+                            return null;
+                        }
+                    });
         }
 
         @Override

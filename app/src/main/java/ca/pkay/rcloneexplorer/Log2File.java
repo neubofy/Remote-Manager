@@ -5,18 +5,24 @@ import android.content.Context;
 import android.os.Environment;
 import ca.pkay.rcloneexplorer.util.FLog;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Log2File {
 
     private static final String TAG = "Log2File";
-    private static final long MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024L; // 10 MB
+    public static final String PREF_KEY_LOG_SIZE_LIMIT_MB = "pref_key_log_size_limit_mb";
+    public static final int DEFAULT_LOG_SIZE_LIMIT_MB = 10;
     private static final ExecutorService logExecutor = Executors.newSingleThreadExecutor();
 
     private final Context context;
@@ -26,13 +32,9 @@ public class Log2File {
     }
 
     public static File getLogDirectory(Context context) {
-        File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File dir = new File(downloadDir, "Remote-Manager/logs");
+        File dir = new File(context.getFilesDir(), "logs");
         if (!dir.exists()) {
-            if (!dir.mkdirs()) {
-                File fallback = context.getExternalFilesDir("logs");
-                return fallback != null ? fallback : new File(context.getFilesDir(), "logs");
-            }
+            dir.mkdirs();
         }
         return dir;
     }
@@ -40,6 +42,12 @@ public class Log2File {
     public static File getDiagnosticLogFile(Context context) {
         File dir = getLogDirectory(context);
         return new File(dir, "rclone_diagnostic.log");
+    }
+
+    public static long getMaxLogSizeBytes(Context context) {
+        int mb = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+                .getInt(PREF_KEY_LOG_SIZE_LIMIT_MB, DEFAULT_LOG_SIZE_LIMIT_MB);
+        return ((long) Math.max(1, mb)) * 1024L * 1024L;
     }
 
     public static long getLogFileSize(Context context) {
@@ -60,6 +68,56 @@ public class Log2File {
         }
     }
 
+    public static File exportLogToDownloads(Context context) {
+        File source = getDiagnosticLogFile(context);
+        if (!source.exists() || source.length() == 0L) {
+            return null;
+        }
+        File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        File exportDir = new File(downloadDir, "Remote-Manager/logs");
+        if (!exportDir.exists()) {
+            exportDir.mkdirs();
+        }
+        @SuppressLint("SimpleDateFormat")
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+        String timestamp = sdf.format(new Date());
+        File dest = new File(exportDir, "rclone_diagnostic_" + timestamp + ".log");
+
+        try (FileInputStream in = new FileInputStream(source);
+             FileOutputStream out = new FileOutputStream(dest)) {
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) > 0) {
+                out.write(buffer, 0, len);
+            }
+            out.flush();
+            return dest;
+        } catch (IOException e) {
+            FLog.e(TAG, "Failed exporting log file to Downloads", e);
+            return null;
+        }
+    }
+
+    public static List<String> readLogs(Context context, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        File logFile = getDiagnosticLogFile(context);
+        if (!logFile.exists() || logFile.length() == 0L) {
+            return lines;
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(logFile)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines.add(line);
+            }
+        } catch (IOException e) {
+            FLog.e(TAG, "Error reading diagnostic log", e);
+        }
+        if (maxLines > 0 && lines.size() > maxLines) {
+            return lines.subList(lines.size() - maxLines, lines.size());
+        }
+        return lines;
+    }
+
     public void log(String message) {
         boolean loggingEnabled = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
                 .getBoolean(context.getString(R.string.pref_key_logs), false);
@@ -69,7 +127,7 @@ public class Log2File {
         logExecutor.execute(() -> {
             try {
                 File logFile = getDiagnosticLogFile(context);
-                rotateLogsIfTooLarge(logFile);
+                autoClearIfSizeLimitExceeded(logFile);
 
                 @SuppressLint("SimpleDateFormat")
                 SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -86,13 +144,22 @@ public class Log2File {
         });
     }
 
-    private void rotateLogsIfTooLarge(File logFile) {
-        if (logFile.exists() && logFile.length() > MAX_LOG_SIZE_BYTES) {
-            File oldLog = new File(logFile.getParentFile(), "rclone_diagnostic_old.log");
-            if (oldLog.exists()) {
-                oldLog.delete();
+    private void autoClearIfSizeLimitExceeded(File logFile) {
+        long limit = getMaxLogSizeBytes(context);
+        if (logFile.exists() && logFile.length() > limit) {
+            try {
+                logFile.delete();
+                logFile.createNewFile();
+                @SuppressLint("SimpleDateFormat")
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                String resetHeader = dateFormat.format(new Date()) + " - [SYSTEM] Log automatically cleared: size limit reached (" + (limit / (1024 * 1024)) + " MB)\n";
+                try (FileOutputStream stream = new FileOutputStream(logFile, false)) {
+                    stream.write(resetHeader.getBytes());
+                    stream.flush();
+                }
+            } catch (Exception e) {
+                FLog.e(TAG, "Error auto-clearing log file", e);
             }
-            logFile.renameTo(oldLog);
         }
     }
 }
