@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class OauthHelper {
 
     private static final String TAG = "OAuthHelper";
-    private static final String regex = "go to the following link: ([^\\s]+)";
+    private static final String regex = "(?:(?:go to the following link:|Please go to:?)\\s+)(https?://[^\\s'\"]+)|(http://127\\.0\\.0\\.1:53682/[^\\s'\"]+)|(http://localhost:53682/[^\\s'\"]+)";
     private static final OauthProcessToken oauthProcessToken = new OauthProcessToken();
 
     // Since OAuth always blocks port 53682, only a single authentication
@@ -107,12 +107,13 @@ public class OauthHelper {
      * tab for the user. Note: this consumes the processes InputStream (stdout).
      */
     public static class UrlAuthThread extends Thread {
-        private static final Pattern pattern = Pattern.compile(regex, 0);
+        private static final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 
         private static final String TAG = "UrlAuthThread";
         private final Process process;
         private final Context context;
         private volatile boolean stopped = false;
+        private volatile boolean urlOpened = false;
 
         public UrlAuthThread(Process process, Context context) {
             this.process = process;
@@ -120,21 +121,21 @@ public class OauthHelper {
         }
 
         public void run() {
+            Thread stdoutThread = new Thread(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        checkLineForUrl(line);
+                    }
+                } catch (Exception ignored) {}
+            });
+            stdoutThread.setDaemon(true);
+            stdoutThread.start();
+
             try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                 String line;
-                while (null != (line = br.readLine())) {
-                    Matcher matcher = pattern.matcher(line);
-                    if (matcher.find()) {
-                        String url = matcher.group(1);
-                        if (url != null) {
-                            launchBrowser(context, url);
-                        }
-
-                        // Do NOT break here, or the stream will be closed.
-                        // When rclone then tries to write to the stream, it will receive SIGPIPE
-                        // and rclone will exit confused why it can't just output its log messages.
-                        // Instead, wait for rclone to close the stream.
-                    }
+                while ((line = br.readLine()) != null) {
+                    checkLineForUrl(line);
                 }
             } catch (IOException e) {
                 if (stopped) {
@@ -144,6 +145,25 @@ public class OauthHelper {
                 stopped = true;
                 FLog.e(TAG, "doInBackground: could not read auth url", e);
                 process.destroy();
+            }
+        }
+
+        private synchronized void checkLineForUrl(String line) {
+            if (line == null || urlOpened) return;
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.find()) {
+                String url = matcher.group(1);
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(2);
+                }
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(3);
+                }
+                if (url != null && !url.isEmpty()) {
+                    urlOpened = true;
+                    FLog.i(TAG, "Launching OAuth authentication URL in browser: " + url);
+                    launchBrowser(context, url);
+                }
             }
         }
 
@@ -158,21 +178,25 @@ public class OauthHelper {
     }
 
     static void launchBrowser(@NonNull Context context, @NonNull String url) {
-        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-        CustomTabsIntent customTabsIntent = builder.build();
         try {
+            CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+            CustomTabsIntent customTabsIntent = builder.build();
+            customTabsIntent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
             customTabsIntent.launchUrl(context, Uri.parse(url));
-        } catch (SecurityException e) {
-            // This happens if a buggy third party component is registered for
-            // browser intents with a non-exported activity.
-            // TODO: Fix this for Android TV
-            FLog.e(TAG, "Could not launch browser", e);
+        } catch (Exception e) {
+            try {
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url));
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception e2) {
+                FLog.e(TAG, "Could not launch browser", e2);
+            }
         }
     }
 
     private static class OauthAction implements InteractiveRunner.Action {
 
-        private static final Pattern pattern = Pattern.compile(regex, 0);
+        private static final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
         private Context context;
 
         public OauthAction(Context context) {
@@ -184,7 +208,14 @@ public class OauthHelper {
             Matcher matcher = pattern.matcher(cliBuffer);
             if (matcher.find()) {
                 String url = matcher.group(1);
-                if (url != null) {
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(2);
+                }
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(3);
+                }
+                if (url != null && !url.isEmpty()) {
+                    FLog.i(TAG, "onTrigger: launching browser for " + url);
                     launchBrowser(context, url);
                 }
             } else {
@@ -194,12 +225,12 @@ public class OauthHelper {
 
         @Override
         public String getInput() {
-            return "";
+            return null;
         }
     }
 
     public static class InitOauthStep extends InteractiveRunner.Step {
-        private static final String TRIGGER = "Log in and authorize rclone for access";
+        private static final String TRIGGER = "127.0.0.1:53682";
 
         /**
          * An OAuth step that launches a browser. ATTENTION: must be registered
@@ -207,17 +238,25 @@ public class OauthHelper {
          * @param context
          */
         public InitOauthStep(Context context) {
-            super(TRIGGER,  new OauthHelper.OauthAction(context));
+            super(TRIGGER, InteractiveRunner.Step.CONTAINS, InteractiveRunner.Step.INTERLEAVED, new OauthHelper.OauthAction(context));
         }
     }
 
     public static class OauthFinishStep extends InteractiveRunner.Step {
 
-        private static final String TRIGGER = "Got code\n";
+        private static final String TRIGGER = "Got code";
 
         public OauthFinishStep() {
-            super(TRIGGER, InteractiveRunner.Step.ENDS_WITH, InteractiveRunner.Step.STDOUT,
-                    new InteractiveRunner.StringAction(""));
+            super(TRIGGER, InteractiveRunner.Step.CONTAINS, InteractiveRunner.Step.INTERLEAVED,
+                    new InteractiveRunner.Action() {
+                        @Override
+                        public void onTrigger(String cliBuffer) {}
+
+                        @Override
+                        public String getInput() {
+                            return null;
+                        }
+                    });
         }
 
         @Override

@@ -447,4 +447,44 @@ public class RemoteItem implements Comparable<RemoteItem>, Parcelable {
         dest.writeByte((byte) (isDrawerPinned ? 1 : 0));
         dest.writeByte((byte) (isPathAlias ? 1 : 0));
     }
+
+    public String serialize() {
+        org.json.JSONObject obj = new org.json.JSONObject();
+        try {
+            obj.put("name", name != null ? name : "");
+            obj.put("displayName", displayName != null ? displayName : "");
+            obj.put("type", type);
+            obj.put("typeReadable", typeReadable != null ? typeReadable : "");
+            obj.put("isCrypt", isCrypt);
+            obj.put("isAlias", isAlias);
+            obj.put("isCache", isCache);
+            obj.put("isPinned", isPinned);
+            obj.put("isDrawerPinned", isDrawerPinned);
+            obj.put("isPathAlias", isPathAlias);
+        } catch (org.json.JSONException ignored) {}
+        return obj.toString();
+    }
+
+    public static RemoteItem deserialize(String jsonStr) {
+        if (jsonStr == null || jsonStr.isEmpty()) {
+            return null;
+        }
+        try {
+            org.json.JSONObject obj = new org.json.JSONObject(jsonStr);
+            String name = obj.optString("name", "");
+            int type = obj.optInt("type", 0);
+            String typeReadable = obj.optString("typeReadable", "");
+            RemoteItem item = new RemoteItem(name, type, typeReadable);
+            item.setDisplayName(obj.optString("displayName", ""));
+            item.setIsCrypt(obj.optBoolean("isCrypt", false));
+            item.setIsAlias(obj.optBoolean("isAlias", false));
+            item.setIsCache(obj.optBoolean("isCache", false));
+            item.pin(obj.optBoolean("isPinned", false));
+            item.setDrawerPinned(obj.optBoolean("isDrawerPinned", false));
+            item.setIsPathAlias(obj.optBoolean("isPathAlias", false));
+            return item;
+        } catch (org.json.JSONException e) {
+            return null;
+        }
+    }
 }

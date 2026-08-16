@@ -99,7 +99,7 @@ public class SettingsActivity extends AppCompatActivity implements SettingsFragm
             startLookAndFeelSettingsFragment();
         } else if (fragment instanceof NotificationPreferencesFragment) {
             startNotificationSettingsFragment();
-        } else if (fragment instanceof LogPreferencesFragment) {
+        } else if (fragment instanceof ca.pkay.rcloneexplorer.ui.logs.LogViewerComposeFragment || fragment instanceof LogPreferencesFragment) {
             startLoggingSettingsActivity();
         }
     }
@@ -159,11 +159,10 @@ public class SettingsActivity extends AppCompatActivity implements SettingsFragm
 
     private void startLoggingSettingsActivity() {
         if (findViewById(R.id.appBar) != null) {
-            findViewById(R.id.appBar).setVisibility(View.VISIBLE);
+            findViewById(R.id.appBar).setVisibility(View.GONE);
         }
-        setTitle(R.string.logging_settings_header);
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-        transaction.replace(R.id.flFragment, new LogPreferencesFragment(), SAVED_FRAGMENT);
+        transaction.replace(R.id.flFragment, ca.pkay.rcloneexplorer.ui.logs.LogViewerComposeFragment.newInstance(), SAVED_FRAGMENT);
         transaction.addToBackStack(null);
         transaction.commit();
     }

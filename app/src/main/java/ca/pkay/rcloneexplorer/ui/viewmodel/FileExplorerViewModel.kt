@@ -78,14 +78,27 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun initRemote(remote: RemoteItem) {
+    fun initRemote(remote: RemoteItem, initialPath: String? = null) {
         val rootPath = "//${remote.name}"
+        val targetPath = if (!initialPath.isNullOrBlank()) {
+            if (initialPath.startsWith("//")) initialPath else "//${remote.name}/${initialPath.trimStart('/')}"
+        } else {
+            rootPath
+        }
+
+        if (_uiState.value.remote?.name == remote.name && pathStack.isNotEmpty()) {
+            if (initialPath == null || _uiState.value.currentPath == targetPath) {
+                // Already initialized for this remote and target path; preserve navigation stack
+                return
+            }
+        }
+
         val showHidden = prefs.getBoolean("pref_key_show_hidden_files", false)
         sortOrder = prefs.getInt("ca.pkay.rcexplorer.sort_order", SortDialog.ALPHA_ASCENDING)
         _uiState.update {
             it.copy(
                 remote = remote,
-                currentPath = rootPath,
+                currentPath = targetPath,
                 showHiddenFiles = showHidden,
                 sortOrder = sortOrder,
                 showThumbnails = prefs.getBoolean(getApplication<Application>().getString(R.string.pref_key_show_thumbnails), true),
@@ -94,7 +107,21 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
         }
         pathStack.clear()
         pathStack.push(rootPath)
-        loadDirectory(rootPath, clearSearch = true, forceRefresh = false, isNavigatingBack = false)
+        if (targetPath != rootPath) {
+            val relative = targetPath.removePrefix(rootPath).trim('/')
+            if (relative.isNotEmpty()) {
+                val segments = relative.split('/')
+                var currentAccum = rootPath
+                for (seg in segments) {
+                    currentAccum += "/$seg"
+                    if (currentAccum != rootPath && currentAccum != targetPath) {
+                        pathStack.push(currentAccum)
+                    }
+                }
+            }
+            pathStack.push(targetPath)
+        }
+        loadDirectory(targetPath, clearSearch = true, forceRefresh = false, isNavigatingBack = false)
     }
 
     fun setThumbnailServerInfo(auth: String, port: Int) {
@@ -685,19 +712,31 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
 
         viewModelScope.launch {
             var deletedCount = 0
+            var failCount = 0
             withContext(Dispatchers.IO) {
                 for (item in selected) {
                     try {
                         val proc = rclone.deleteItems(currentRemote, item)
-                        proc?.waitFor()
-                        deletedCount++
+                        val exitCode = proc?.waitFor() ?: -1
+                        if (exitCode == 0) {
+                            deletedCount++
+                            ThumbnailCacheManager.removeThumbnail(getApplication(), item)
+                        } else {
+                            failCount++
+                        }
                     } catch (e: Exception) {
                         FLog.e(TAG, "Error deleting item: ${item.name}", e)
+                        failCount++
                     }
                 }
             }
             DirectoryCacheRepository.remove(currentRemote.name, currentPath)
-            _uiState.update { it.copy(infoMessage = "Deleted $deletedCount item(s)", isRefreshing = false) }
+            val msg = if (failCount == 0) {
+                "Deleted $deletedCount item(s)"
+            } else {
+                "Deleted $deletedCount item(s), $failCount failed"
+            }
+            _uiState.update { it.copy(infoMessage = msg, isRefreshing = false) }
             loadDirectory(currentPath, clearSearch = false, forceRefresh = true, isNavigatingBack = false)
         }
     }
@@ -731,7 +770,10 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
             withContext(Dispatchers.IO) {
                 try {
                     val proc = rclone.deleteItems(currentRemote, fileItem)
-                    proc?.waitFor()
+                    val exitCode = proc?.waitFor() ?: -1
+                    if (exitCode == 0) {
+                        ThumbnailCacheManager.removeThumbnail(getApplication(), fileItem)
+                    }
                 } catch (e: Exception) {
                     FLog.e(TAG, "Error deleting item ${fileItem.name}", e)
                 }
@@ -781,9 +823,13 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update { it.copy(isRefreshing = true) }
             val moved = withContext(Dispatchers.IO) {
                 try {
-                    rclone.moveTo(currentRemote, cleanOld, cleanNew)
+                    val success = rclone.moveTo(currentRemote, cleanOld, cleanNew)
+                    if (success) {
+                        ThumbnailCacheManager.removeThumbnail(getApplication(), fileItem)
+                    }
+                    success
                 } catch (e: Exception) {
-                    FLog.e(TAG, "Failed renaming file", e)
+                    FLog.e(TAG, "Error renaming item ${fileItem.name} to $newName", e)
                     false
                 }
             }

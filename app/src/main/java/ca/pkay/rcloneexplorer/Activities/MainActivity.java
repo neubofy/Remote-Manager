@@ -333,19 +333,24 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         boolean superOnBackPressed = true;
 
+        Fragment currentFragment = fragment;
+        if (currentFragment == null) {
+            currentFragment = getSupportFragmentManager().findFragmentById(R.id.flFragment);
+        }
+
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
-        } else if (fragment != null) {
-            if (fragment instanceof FileExplorerComposeFragment) {
-                if (((FileExplorerComposeFragment) fragment).onBackButtonPressed()) {
+        } else if (currentFragment != null) {
+            if (currentFragment instanceof FileExplorerComposeFragment) {
+                if (((FileExplorerComposeFragment) currentFragment).onBackButtonPressed()) {
                     return;
                 } else {
                     fragment = null;
                 }
-            } else if (fragment instanceof TasksComposeFragment) {
+            } else if (currentFragment instanceof TasksComposeFragment) {
                 startRemotesFragment();
                 superOnBackPressed = false;
-            } else if (fragment instanceof TriggerFragment) {
+            } else if (currentFragment instanceof TriggerFragment) {
                 startRemotesFragment();
                 superOnBackPressed = false;
             }
@@ -444,10 +449,7 @@ public class MainActivity extends AppCompatActivity
     private void startFragment(Fragment fragmentToStart) {
         fragment = fragmentToStart;
         FragmentManager fragmentManager = getSupportFragmentManager();
-
-        for (int i = 0; i < fragmentManager.getBackStackEntryCount(); i++) {
-            fragmentManager.popBackStack();
-        }
+        fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
 
         if (!isFinishing()) {
             fragmentManager.beginTransaction().replace(R.id.flFragment, fragment).commitAllowingStateLoss();
@@ -680,7 +682,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void startRemote(RemoteItem remote, boolean addToBackStack) {
-        fragment = FileExplorerComposeFragment.newInstance(remote);
+        startRemote(remote, null, addToBackStack);
+    }
+
+    public void startRemote(RemoteItem remote, String initialPath, boolean addToBackStack) {
+        fragment = FileExplorerComposeFragment.newInstance(remote, initialPath);
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
         transaction.replace(R.id.flFragment, fragment, FILE_EXPLORER_FRAGMENT_TAG);
         if (addToBackStack) {
@@ -701,10 +707,7 @@ public class MainActivity extends AppCompatActivity
             if (fragmentManager.getBackStackEntryCount() == 0) {
                 startRemote(remoteItem, false);
             } else {
-                for (int i = 0; i < fragmentManager.getBackStackEntryCount(); i++) {
-                    fragmentManager.popBackStack();
-                }
-
+                fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
                 startRemote(remoteItem, true);
             }
         } else {

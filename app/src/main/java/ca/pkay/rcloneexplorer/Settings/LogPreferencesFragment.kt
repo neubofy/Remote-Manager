@@ -26,12 +26,89 @@ class LogPreferencesFragment : PreferenceFragmentCompat() {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         requireActivity().title = getString(R.string.logging_settings_header)
 
-        val sigkill = findPreference<Preference>("TempKeySigquit") as ButtonPreference
-        sigkill.setButtonText(getString(R.string.pref_send_sigquit_button))
-        sigkill.setButtonOnClick {
-            sigquitAll()
+        updateLogInfo()
+
+        findPreference<Preference>("pref_key_share_log")?.setOnPreferenceClickListener {
+            shareDiagnosticLog()
+            true
         }
 
+        findPreference<Preference>("pref_key_clear_log")?.setOnPreferenceClickListener {
+            clearDiagnosticLog()
+            true
+        }
+
+        findPreference<Preference>("pref_key_log_file_info")?.setOnPreferenceClickListener {
+            openLogDirectory()
+            true
+        }
+
+        val sigkill = findPreference<Preference>("TempKeySigquit") as? ButtonPreference
+        sigkill?.setButtonText(getString(R.string.pref_send_sigquit_button))
+        sigkill?.setButtonOnClick {
+            sigquitAll()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateLogInfo()
+    }
+
+    private fun updateLogInfo() {
+        val ctx = context ?: return
+        val logFile = ca.pkay.rcloneexplorer.Log2File.getDiagnosticLogFile(ctx)
+        val sizeFormatted = android.text.format.Formatter.formatFileSize(ctx, logFile.length())
+        val infoPref = findPreference<Preference>("pref_key_log_file_info")
+        infoPref?.summary = "${logFile.absolutePath}\nSize: $sizeFormatted"
+    }
+
+    private fun shareDiagnosticLog() {
+        val ctx = context ?: return
+        val logFile = ca.pkay.rcloneexplorer.Log2File.getDiagnosticLogFile(ctx)
+        if (!logFile.exists() || logFile.length() == 0L) {
+            Toast.makeText(ctx, "Diagnostic log is currently empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                ctx,
+                ca.pkay.rcloneexplorer.BuildConfig.APPLICATION_ID + ".fileprovider",
+                logFile
+            )
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(android.content.Intent.createChooser(intent, "Share Diagnostic Log"))
+        } catch (e: Exception) {
+            FLog.e(tag(), "Error sharing log", e)
+            Toast.makeText(ctx, "Could not share log: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun clearDiagnosticLog() {
+        val ctx = context ?: return
+        if (ca.pkay.rcloneexplorer.Log2File.clearLog(ctx)) {
+            Toast.makeText(ctx, "Diagnostic log cleared", Toast.LENGTH_SHORT).show()
+            updateLogInfo()
+        }
+    }
+
+    private fun openLogDirectory() {
+        val ctx = context ?: return
+        val dir = ca.pkay.rcloneexplorer.Log2File.getLogDirectory(ctx)
+        try {
+            val uri = android.net.Uri.parse(dir.absolutePath)
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "*/*")
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(ctx, "Log folder: ${dir.absolutePath}", Toast.LENGTH_LONG).show()
+        }
     }
 
 

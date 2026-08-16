@@ -107,13 +107,18 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
 
             mNotificationManager?.setCancelId(id)
 
-            val cm = mContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-            val activeNetwork = cm.activeNetworkInfo
-            if (activeNetwork == null || !activeNetwork.isConnected) {
-                log("No network connection, aborting task.")
-                failureReason = FAILURE_REASON.NO_CONNECTION
-                postSync()
-                return Result.failure()
+            val isRemoteCloud = !remoteItem.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW)
+            if (isRemoteCloud) {
+                val cm = mContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                val network = cm.activeNetwork
+                val caps = if (network != null) cm.getNetworkCapabilities(network) else null
+                val isConnected = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                if (!isConnected) {
+                    log("No network connection, aborting cloud task.")
+                    failureReason = FAILURE_REASON.NO_CONNECTION
+                    postSync()
+                    return Result.failure()
+                }
             }
 
             // Execute task directly without any connection preconditions
@@ -174,7 +179,11 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             }
             handleSync(mTitle)
             postSync()
-            return Result.success()
+            return if (failureReason == FAILURE_REASON.NO_FAILURE) {
+                Result.success()
+            } else {
+                Result.failure()
+            }
         }
         log("Critical: No valid ephemeral type passed!")
         return Result.failure()
@@ -205,6 +214,19 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     private fun handleSync(title: String) {
         if (sRcloneProcess != null) {
             val localProcessReference = sRcloneProcess!!
+            val stdoutThread = Thread {
+                try {
+                    BufferedReader(InputStreamReader(localProcessReference.inputStream)).use { stdoutReader ->
+                        while (stdoutReader.readLine() != null) {
+                            // Concurrently drain stdout so process never blocks
+                        }
+                    }
+                } catch (ignored: Exception) {}
+            }.apply {
+                isDaemon = true
+                start()
+            }
+
             try {
                 val reader = BufferedReader(InputStreamReader(localProcessReference.errorStream))
                 val iterator = reader.lineSequence().iterator()
@@ -238,15 +260,22 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
             } catch (e: InterruptedIOException) {
                 FLog.e(tag(), "onHandleIntent: I/O interrupted, stream closed", e)
             } catch (e: IOException) {
-                FLog.e(tag(), "onHandleIntent: error reading stdout", e)
+                FLog.e(tag(), "onHandleIntent: error reading errorStream", e)
             }
+
             try {
-                localProcessReference.waitFor()
+                val exitCode = localProcessReference.waitFor()
+                stdoutThread.join(1000)
+                if (exitCode != 0 && failureReason == FAILURE_REASON.NO_FAILURE) {
+                    failureReason = FAILURE_REASON.RCLONE_ERROR
+                }
             } catch (e: InterruptedException) {
                 FLog.e(tag(), "onHandleIntent: error waiting for process", e)
+                failureReason = FAILURE_REASON.CANCELLED
             }
         } else {
             log("Sync: No Rclone Process!")
+            failureReason = FAILURE_REASON.RCLONE_ERROR
         }
         mNotificationManager?.cancelSyncNotification(ongoingNotificationID)
     }
@@ -384,6 +413,24 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     }
 
     private fun getFileitemFromParcel(key: String): FileItem? {
+        val jsonStr = inputData.getString(key)
+        if (!jsonStr.isNullOrEmpty()) {
+            return try {
+                val obj = JSONObject(jsonStr)
+                val remote = RemoteItem.deserialize(obj.getString("remote"))
+                val path = obj.getString("path")
+                val name = obj.getString("name")
+                val size = obj.getLong("size")
+                val modTime = obj.optString("modTime", "")
+                val mimeType = obj.optString("mimeType", "")
+                val isDir = obj.optBoolean("isDir", false)
+                FileItem(remote, path, name, size, modTime, mimeType, isDir, false)
+            } catch (e: Exception) {
+                log("Error parsing JSON FileItem: ${e.message}")
+                null
+            }
+        }
+
         val sourceParcelByteArray = inputData.getByteArray(key) ?: return null
         val parcel = Parcel.obtain()
         return try {
@@ -399,6 +446,16 @@ class EphemeralWorker (private var mContext: Context, workerParams: WorkerParame
     }
 
     private fun getRemoteitemFromParcel(key: String): RemoteItem? {
+        val jsonStr = inputData.getString(key)
+        if (!jsonStr.isNullOrEmpty()) {
+            return try {
+                RemoteItem.deserialize(jsonStr)
+            } catch (e: Exception) {
+                log("Error parsing JSON RemoteItem: ${e.message}")
+                null
+            }
+        }
+
         val sourceParcelByteArray = inputData.getByteArray(key)
         if (sourceParcelByteArray == null) {
             log("No valid target was passed!")

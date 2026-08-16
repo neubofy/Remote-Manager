@@ -27,7 +27,7 @@ object ThumbnailCacheManager {
     private val memoryBitmaps = ConcurrentHashMap<String, Bitmap>()
 
     fun getCacheKey(fileItem: FileItem): String {
-        val raw = "${fileItem.remote.name}:${fileItem.path}:${fileItem.modTime}:${fileItem.size}"
+        val raw = "${fileItem.remote.name}:${fileItem.path}:${fileItem.size}"
         val bytes = MessageDigest.getInstance("MD5").digest(raw.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
@@ -64,21 +64,42 @@ object ThumbnailCacheManager {
         return file.exists() && file.length() > 0
     }
 
+    private var writeCounter = 0
+
     fun saveThumbnailBitmap(context: Context, fileItem: FileItem, bitmap: Bitmap) {
         try {
             val key = getCacheKey(fileItem)
             val dir = getThumbnailDir(context)
-            ensureBudget(context, dir)
 
-            val file = File(dir, "$key.thumb")
-            val tempFile = File(dir, "$key.tmp")
+            writeCounter++
+            if (writeCounter % 20 == 0) {
+                backgroundIoExecutor.execute {
+                    ensureBudget(context, dir)
+                }
+            }
+
+            val targetFile = File(dir, "$key.thumb")
+            // Use unique temp file to avoid thread collisions during fast multi-threaded scrolling
+            val tempFile = File.createTempFile("thumb_${key}_", ".tmp", dir)
             FileOutputStream(tempFile).use { out ->
-                // Compress into high-efficiency JPEG thumbnail
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
                 out.flush()
             }
-            if (tempFile.exists()) {
-                tempFile.renameTo(file)
+            if (tempFile.exists() && tempFile.length() > 0) {
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
+                tempFile.renameTo(targetFile)
+            }
+        } catch (ignored: Exception) {}
+    }
+
+    fun removeThumbnail(context: Context, fileItem: FileItem) {
+        try {
+            val key = getCacheKey(fileItem)
+            val file = File(getThumbnailDir(context), "$key.thumb")
+            if (file.exists()) {
+                file.delete()
             }
         } catch (ignored: Exception) {}
     }
@@ -92,7 +113,7 @@ object ThumbnailCacheManager {
             var totalSize = files.sumOf { it.length() }
 
             if (totalSize > maxBudget) {
-                // Sort by last modified ascending (oldest first) and delete until within 75% of budget
+                // Sort by last modified ascending (oldest accessed first) and delete until within 75% of budget
                 val sorted = files.sortedBy { it.lastModified() }
                 for (f in sorted) {
                     totalSize -= f.length()

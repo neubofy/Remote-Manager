@@ -39,6 +39,29 @@ enum class FileTypeFilter(val displayName: String) {
 object RcloneExtensions {
     private const val TAG = "RcloneExtensions"
 
+    private suspend fun Process.awaitSafeExit(): Int = withContext(Dispatchers.IO) {
+        val stderrThread = Thread {
+            try {
+                errorStream.bufferedReader().use { it.readText() }
+            } catch (ignored: Exception) {}
+        }
+        val stdoutThread = Thread {
+            try {
+                inputStream.bufferedReader().use { it.readText() }
+            } catch (ignored: Exception) {}
+        }
+        stderrThread.isDaemon = true
+        stdoutThread.isDaemon = true
+        stderrThread.start()
+        stdoutThread.start()
+        val exit = waitFor()
+        try {
+            stderrThread.join(500)
+            stdoutThread.join(500)
+        } catch (ignored: Exception) {}
+        exit
+    }
+
     /**
      * Copy a single file or folder to a destination path or remote.
      */
@@ -64,12 +87,8 @@ object RcloneExtensions {
             }
 
             val process = rclone.executeCommandWithOptions(*command)
-            process?.waitFor()
-            val success = process != null && process.exitValue() == 0
-            if (!success && process != null) {
-                rclone.logErrorOutput(process)
-            }
-            success
+            val exitCode = process?.awaitSafeExit() ?: -1
+            exitCode == 0
         } catch (e: Exception) {
             FLog.e(TAG, "copyItem error", e)
             false
@@ -101,12 +120,8 @@ object RcloneExtensions {
             }
 
             val process = rclone.executeCommandWithOptions(*command)
-            process?.waitFor()
-            val success = process != null && process.exitValue() == 0
-            if (!success && process != null) {
-                rclone.logErrorOutput(process)
-            }
-            success
+            val exitCode = process?.awaitSafeExit() ?: -1
+            exitCode == 0
         } catch (e: Exception) {
             FLog.e(TAG, "duplicateItem error", e)
             false
@@ -136,15 +151,14 @@ object RcloneExtensions {
             val newRemotePath = rclone.buildRemoteLocation(remote, newRelativePath)
 
             val process = rclone.executeCommandWithOptions("moveto", oldRemotePath, newRemotePath)
-            process?.waitFor()
-            val success = process != null && process.exitValue() == 0
-            results.add(item to success)
+            val exitCode = process?.awaitSafeExit() ?: -1
+            results.add(item to (exitCode == 0))
         }
         results
     }
 
     /**
-     * Scan current directory or subtree for duplicates by comparing file sizes and names / hashes.
+     * Scan current directory or subtree for duplicates by comparing file content hashes (MD5/SHA1) or size.
      */
     suspend fun scanDuplicates(
         rclone: Rclone,
@@ -154,19 +168,40 @@ object RcloneExtensions {
         try {
             val cleanPath = Rclone.cleanPathString(remote, path)
             val remotePath = rclone.buildRemoteLocation(remote, cleanPath)
-            val process = rclone.executeCommandWithOptions("lsjson", "-R", "--max-depth", "4", remotePath) ?: return@withContext emptyList()
+            val process = rclone.executeCommandWithOptions("lsjson", "-R", "--hash", "--max-depth", "4", remotePath) ?: return@withContext emptyList()
 
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val output = StringBuilder()
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                output.append(line)
+            val stdoutBuffer = StringBuilder()
+            val stdoutThread = Thread {
+                try {
+                    process.inputStream.bufferedReader().use { reader ->
+                        var line: String?
+                        while (reader.readLine().also { line = it } != null) {
+                            stdoutBuffer.append(line)
+                        }
+                    }
+                } catch (ignored: Exception) {}
             }
-            process.waitFor()
-            if (process.exitValue() != 0) return@withContext emptyList()
+            val stderrThread = Thread {
+                try {
+                    process.errorStream.bufferedReader().use { it.readText() }
+                } catch (ignored: Exception) {}
+            }
+            stdoutThread.isDaemon = true
+            stderrThread.isDaemon = true
+            stdoutThread.start()
+            stderrThread.start()
 
-            val jsonArray = JSONArray(output.toString())
-            val fileItems = mutableListOf<FileItem>()
+            val exitCode = process.waitFor()
+            try {
+                stdoutThread.join(1000)
+                stderrThread.join(500)
+            } catch (ignored: Exception) {}
+
+            val jsonText = stdoutBuffer.toString()
+            if (exitCode != 0 || jsonText.isBlank()) return@withContext emptyList()
+
+            val jsonArray = JSONArray(org.json.JSONTokener(jsonText))
+            val fileItemsWithHashes = mutableListOf<Pair<FileItem, String>>()
 
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
@@ -179,18 +214,28 @@ object RcloneExtensions {
                 val modTime = obj.optString("ModTime", "")
                 val mimeType = obj.optString("MimeType", "")
 
+                val hashesObj = obj.optJSONObject("Hashes")
+                val md5 = hashesObj?.optString("MD5", "") ?: ""
+                val sha1 = hashesObj?.optString("SHA-1", "") ?: ""
+                val effectiveHash = when {
+                    md5.isNotBlank() -> md5
+                    sha1.isNotBlank() -> sha1
+                    else -> "size_${size}"
+                }
+
                 val fullPath = if (cleanPath.isEmpty()) itemPath else "$cleanPath/$itemPath"
-                fileItems.add(FileItem(remote, fullPath, name, size, modTime, mimeType, false, false))
+                val fileItem = FileItem(remote, fullPath, name, size, modTime, mimeType, false, false)
+                fileItemsWithHashes.add(fileItem to effectiveHash)
             }
 
-            // Group by size & name or content length
-            val groups = fileItems.groupBy { "${it.name.lowercase()}_${it.size}" }
-                .filter { it.value.size > 1 }
+            // Group by content hash (finds identical files even if renamed)
+            val groups = fileItemsWithHashes.groupBy { it.second }
+                .filter { it.value.size > 1 && it.value.first().first.size > 0 }
                 .map { (key, list) ->
                     DuplicateGroup(
                         hashOrKey = key,
-                        size = list.first().size,
-                        items = list
+                        size = list.first().first.size,
+                        items = list.map { it.first }
                     )
                 }
             groups

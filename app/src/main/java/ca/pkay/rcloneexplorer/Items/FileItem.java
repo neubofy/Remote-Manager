@@ -160,6 +160,11 @@ public class FileItem implements Parcelable {
     }
 
     @Override
+    public int hashCode() {
+        return java.util.Objects.hash(remote, path, name);
+    }
+
+    @Override
     public int describeContents() {
         return 0;
     }

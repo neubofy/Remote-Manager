@@ -53,6 +53,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
 
     companion object {
         private const val ARG_REMOTE = "remote_param"
+        private const val ARG_INITIAL_PATH = "initial_path_param"
         private const val FILE_PICKER_UPLOAD_RESULT = 186
         private const val FILE_PICKER_DOWNLOAD_RESULT = 204
         const val STREAMING_INTENT_RESULT = 168
@@ -63,16 +64,21 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         const val OPEN_AS_AUDIO = 4
 
         @JvmStatic
-        fun newInstance(remoteItem: RemoteItem): FileExplorerComposeFragment {
+        @JvmOverloads
+        fun newInstance(remoteItem: RemoteItem, initialPath: String? = null): FileExplorerComposeFragment {
             val fragment = FileExplorerComposeFragment()
             val args = Bundle()
             args.putParcelable(ARG_REMOTE, remoteItem)
+            if (initialPath != null) {
+                args.putString(ARG_INITIAL_PATH, initialPath)
+            }
             fragment.arguments = args
             return fragment
         }
     }
 
     private var remote: RemoteItem? = null
+    private var initialPath: String? = null
     private val viewModel: FileExplorerViewModel by viewModels()
     private var pendingDownloadList: List<FileItem> = emptyList()
 
@@ -88,6 +94,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
             @Suppress("DEPRECATION")
             arguments?.getParcelable(ARG_REMOTE)
         }
+        initialPath = arguments?.getString(ARG_INITIAL_PATH)
     }
 
     fun onBackButtonPressed(): Boolean {
@@ -99,17 +106,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        remote?.let { viewModel.initRemote(it) }
-
-        // Smart On-Demand Thumbnail Service Lifecycle
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState
-                .map { Triple(it.displayFiles, it.showThumbnails, it.remote) }
-                .distinctUntilChanged()
-                .collect { (displayFiles, showThumbnails, currentRemote) ->
-                    evaluateThumbnailServiceDemand(displayFiles, showThumbnails, currentRemote)
-                }
-        }
+        remote?.let { viewModel.initRemote(it, initialPath) }
 
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -131,103 +128,6 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
                 }
             }
         }
-    }
-
-    private fun evaluateThumbnailServiceDemand(
-        displayFiles: List<FileItem>,
-        showThumbnails: Boolean,
-        currentRemote: RemoteItem?
-    ) {
-        if (currentRemote == null || !showThumbnails ||
-            currentRemote.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW) ||
-            currentRemote.isPathAlias
-        ) {
-            stopThumbnailService()
-            return
-        }
-
-        val imageFiles = displayFiles.filter { !it.isDir && it.mimeType?.startsWith("image/") == true }
-        if (imageFiles.isEmpty()) {
-            stopThumbnailService()
-            return
-        }
-
-        val ctx = context ?: return
-        val maxThumbnailSize = PreferenceManager.getDefaultSharedPreferences(ctx)
-            .getLong(getString(R.string.pref_key_thumbnail_size_limit), 26214400L)
-
-        // Check if there is at least one visible image NOT yet cached locally in ThumbnailCacheManager
-        val hasUncachedImages = imageFiles.any { item ->
-            if (item.size > maxThumbnailSize) return@any false
-            !ca.pkay.rcloneexplorer.data.ThumbnailCacheManager.isCached(ctx, item)
-        }
-
-        if (hasUncachedImages) {
-            startThumbnailService()
-        } else {
-            // All images are already cached locally on disk - no service needed
-            stopThumbnailService()
-        }
-    }
-
-    private fun startThumbnailService() {
-        val currentRemote = remote ?: return
-        if (currentRemote.isRemoteType(RemoteItem.LOCAL, RemoteItem.SAFW) || currentRemote.isPathAlias) return
-        val context = context ?: return
-        if (isThumbnailServiceRunning) return
-
-        try {
-            val random = SecureRandom()
-            val values = ByteArray(16)
-            random.nextBytes(values)
-            thumbnailServerAuth = Base64.encodeToString(values, Base64.NO_PADDING or Base64.NO_WRAP or Base64.URL_SAFE)
-            thumbnailServerPort = allocatePort(29179)
-
-            val serveIntent = Intent(context, ThumbnailsLoadingService::class.java).apply {
-                putExtra(ThumbnailsLoadingService.REMOTE_ARG, currentRemote)
-                putExtra(ThumbnailsLoadingService.HIDDEN_PATH, thumbnailServerAuth)
-                putExtra(ThumbnailsLoadingService.SERVER_PORT, thumbnailServerPort)
-            }
-            tryStartService(context, serveIntent)
-            isThumbnailServiceRunning = true
-            viewModel.setThumbnailServerInfo(thumbnailServerAuth, thumbnailServerPort)
-        } catch (e: Exception) {
-            // Ignore thumbnail server startup failure
-        }
-    }
-
-    private fun stopThumbnailService() {
-        if (isThumbnailServiceRunning) {
-            val context = context ?: return
-            try {
-                context.stopService(Intent(context, ThumbnailsLoadingService::class.java))
-            } catch (ignored: Exception) {}
-            isThumbnailServiceRunning = false
-            viewModel.setThumbnailServerInfo("", 0)
-        }
-    }
-
-    private fun allocatePort(port: Int): Int {
-        return try {
-            val serverSocket = ServerSocket(port)
-            val localPort = serverSocket.localPort
-            serverSocket.close()
-            localPort
-        } catch (e: Exception) {
-            try {
-                val serverSocket = ServerSocket(0)
-                val localPort = serverSocket.localPort
-                serverSocket.close()
-                localPort
-            } catch (e2: Exception) {
-                29179
-            }
-        }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        stopThumbnailService()
     }
 
     fun openFile(fileItem: FileItem, openAs: Int = -1) {
@@ -285,6 +185,24 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
         }
     }
 
+    private fun allocatePort(port: Int): Int {
+        return try {
+            val serverSocket = java.net.ServerSocket(port)
+            val localPort = serverSocket.localPort
+            serverSocket.close()
+            localPort
+        } catch (e: Exception) {
+            try {
+                val serverSocket = java.net.ServerSocket(0)
+                val localPort = serverSocket.localPort
+                serverSocket.close()
+                localPort
+            } catch (e2: Exception) {
+                8080
+            }
+        }
+    }
+
     private fun streamAndOpen(fileItem: FileItem, currentRemote: RemoteItem, openAs: Int) {
         val ctx = context ?: return
         val loadingDialog = LoadingDialog()
@@ -296,7 +214,7 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
             val port = allocatePort(8080)
             val serveIntent = Intent(ctx, StreamingService::class.java).apply {
                 putExtra(StreamingService.SERVE_PATH_ARG, fileItem.path)
-                putExtra(StreamingService.REMOTE_ARG, currentRemote)
+                putExtra(StreamingService.REMOTE_ARG, currentRemote as android.os.Parcelable)
                 putExtra(StreamingService.SHOW_NOTIFICATION_TEXT, false)
                 putExtra(StreamingService.SERVE_PORT, port)
             }

@@ -170,15 +170,24 @@ class RemotesViewModel(application: Application) : AndroidViewModel(application)
                 try {
                     val process = rclone.reconnectRemote(remote)
                     if (process != null) {
-                        val start = Step("y/n> ", StringAction("y"))
-                        val postOauth = start.addFollowing("y/n> ", "y")
-                            .addFollowing(InitOauthStep(context))
-                            .addFollowing(OauthFinishStep())
+                        val appContext = context.applicationContext
+                        val start = Step("y/n> ", Step.CONTAINS, Step.INTERLEAVED, StringAction("y"))
+                        val secondQuestion = start.addFollowing("y/n> ", "y")
+                        val finishStep = OauthFinishStep().apply {
+                            addFollowing("y/n> ", "n")
+                            addFollowing("y/e/d> ", "y")
+                        }
+                        val postOauth = secondQuestion.addFollowing(InitOauthStep(appContext))
+                            .addFollowing(finishStep)
+                        
+                        // Alternative branch: in case rclone immediately prompts for OAuth without asking a second y/n
+                        start.addFollowing(InitOauthStep(appContext))
+                            .addFollowing(finishStep)
 
                         if (RemoteItem.ONEDRIVE == remote.type) {
-                            postOauth.addFollowing("OneDrive Personal or Business", "onedrive")
-                                .addFollowing("Chose drive to use:> ", "0")
-                                .addFollowing("y/n> ", "y")
+                            postOauth.addFollowing("OneDrive", "onedrive")
+                                .addFollowing("drive", "0")
+                                .addFollowing("y/n", "y")
                         }
 
                         val runner = InteractiveRunner(start, { e ->

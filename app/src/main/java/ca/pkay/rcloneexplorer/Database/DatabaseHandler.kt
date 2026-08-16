@@ -64,14 +64,12 @@ class DatabaseHandler(private val mContext: Context?) :
     val allTasks: List<Task>
         get() {
             val db = readableDatabase
-            val selection = ""
-            val selectionArgs = arrayOf<String>()
             val sortOrder = Task.COLUMN_NAME_ID + " ASC"
             val cursor = db.query(
                 Task.TABLE_NAME,
                 taskProjection,
-                selection,
-                selectionArgs,
+                null,
+                null,
                 null,
                 null,
                 sortOrder
@@ -86,7 +84,7 @@ class DatabaseHandler(private val mContext: Context?) :
 
     fun getTask(id: Long): Task? {
         val db = readableDatabase
-        val selection = Task.COLUMN_NAME_ID + " LIKE ?"
+        val selection = Task.COLUMN_NAME_ID + " = ?"
         val selectionArgs = arrayOf(id.toString())
         val sortOrder = Task.COLUMN_NAME_ID + " ASC"
         val cursor = db.query(
@@ -180,7 +178,7 @@ class DatabaseHandler(private val mContext: Context?) :
         db.beginTransaction()
         try {
             db.delete(Trigger.TABLE_NAME, Trigger.COLUMN_NAME_TARGET + " = ?", arrayOf(id.toString()))
-            val selection = Task.COLUMN_NAME_ID + " LIKE ?"
+            val selection = Task.COLUMN_NAME_ID + " = ?"
             val selectionArgs = arrayOf(id.toString())
             val count = db.delete(Task.TABLE_NAME, selection, selectionArgs)
             db.setTransactionSuccessful()
@@ -240,14 +238,12 @@ class DatabaseHandler(private val mContext: Context?) :
         get() {
             val db = readableDatabase
             val projection = triggerProjection
-            val selection = ""
-            val selectionArgs = arrayOf<String>()
             val sortOrder = Trigger.COLUMN_NAME_ID + " ASC"
             val cursor = db.query(
                     Trigger.TABLE_NAME,
                     projection,
-                    selection,
-                    selectionArgs,
+                    null,
+                    null,
                     null,
                     null,
                     sortOrder
@@ -263,7 +259,7 @@ class DatabaseHandler(private val mContext: Context?) :
     fun getTrigger(id: Long): Trigger? {
         val db = readableDatabase
         val projection = triggerProjection
-        val selection = Trigger.COLUMN_NAME_ID + " LIKE ?"
+        val selection = Trigger.COLUMN_NAME_ID + " = ?"
         val selectionArgs = arrayOf(id.toString())
         val sortOrder = Trigger.COLUMN_NAME_ID + " ASC"
         val cursor = db.query(
@@ -304,7 +300,7 @@ class DatabaseHandler(private val mContext: Context?) :
 
     fun deleteTrigger(id: Long): Int {
         val db = writableDatabase
-        val selection = Trigger.COLUMN_NAME_ID + " LIKE ?"
+        val selection = Trigger.COLUMN_NAME_ID + " = ?"
         val selectionArgs = arrayOf(id.toString())
         return db.delete(Trigger.TABLE_NAME, selection, selectionArgs)
     }
@@ -323,7 +319,7 @@ class DatabaseHandler(private val mContext: Context?) :
         values.put(Trigger.COLUMN_NAME_TITLE, t.title)
         values.put(Trigger.COLUMN_NAME_ENABLED, t.isEnabled)
         values.put(Trigger.COLUMN_NAME_TIME, t.time)
-        values.put(Trigger.COLUMN_NAME_WEEKDAY, t.getWeekdays())
+        values.put(Trigger.COLUMN_NAME_WEEKDAY, t.weekdays)
         values.put(Trigger.COLUMN_NAME_TARGET, t.triggerTarget)
         values.put(Trigger.COLUMN_NAME_TYPE, t.type)
         return values
@@ -346,7 +342,7 @@ class DatabaseHandler(private val mContext: Context?) :
         trigger.isEnabled = cursor.getInt(2) == 1
         trigger.time = cursor.getInt(3)
         val weekdays = cursor.getInt(4)
-        trigger.setWeekdays(weekdays.toByte())
+        trigger.weekdays = weekdays.toByte()
         trigger.triggerTarget = cursor.getLong(5)
         trigger.type = cursor.getInt(6)
         return trigger
@@ -356,14 +352,12 @@ class DatabaseHandler(private val mContext: Context?) :
         get() {
             val db = readableDatabase
             val projection = filterProjection
-            val selection = ""
-            val selectionArgs = arrayOf<String>()
             val sortOrder = Filter.COLUMN_NAME_ID + " ASC"
             val cursor = db.query(
                     Filter.TABLE_NAME,
                     projection,
-                    selection,
-                    selectionArgs,
+                    null,
+                    null,
                     null,
                     null,
                     sortOrder
@@ -379,7 +373,7 @@ class DatabaseHandler(private val mContext: Context?) :
     fun getFilter(id: Long): Filter? {
         val db = readableDatabase
         val projection = filterProjection
-        val selection = Filter.COLUMN_NAME_ID + " LIKE ?"
+        val selection = Filter.COLUMN_NAME_ID + " = ?"
         val selectionArgs = arrayOf(id.toString())
         val sortOrder = Filter.COLUMN_NAME_ID + " ASC"
         val cursor = db.query(
@@ -420,7 +414,7 @@ class DatabaseHandler(private val mContext: Context?) :
 
     fun deleteFilter(id: Long): Int {
         val db = writableDatabase
-        val selection = Filter.COLUMN_NAME_ID + " LIKE ?"
+        val selection = Filter.COLUMN_NAME_ID + " = ?"
         val selectionArgs = arrayOf(id.toString())
         return db.delete(Filter.TABLE_NAME, selection, selectionArgs)
     }

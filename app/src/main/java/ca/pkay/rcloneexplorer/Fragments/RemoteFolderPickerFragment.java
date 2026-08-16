@@ -141,6 +141,7 @@ public class RemoteFolderPickerFragment extends Fragment implements   FileExplor
         if (getContext() == null) {
             return;
         }
+        this.context = getContext();
         setHasOptionsMenu(true);
 
         remote = getArguments().getParcelable(ARG_REMOTE);
@@ -211,6 +212,7 @@ public class RemoteFolderPickerFragment extends Fragment implements   FileExplor
         swipeRefreshLayout.setOnRefreshListener(this);
 
         Context context = view.getContext();
+        this.context = context;
 
         RecyclerView recyclerView = view.findViewById(R.id.file_explorer_list);
         recyclerViewLinearLayoutManager = new LinearLayoutManager(context);

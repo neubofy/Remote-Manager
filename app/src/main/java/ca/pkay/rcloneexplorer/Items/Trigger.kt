@@ -7,14 +7,16 @@ import kotlinx.serialization.json.JsonNames
 import org.json.JSONObject
 
 @Serializable
-data class Trigger(var id: Long) {
+data class Trigger(
+    var id: Long = TRIGGER_ID_DOESNTEXIST,
     // Alternatives are kept for backwards compatibility with old, manual parser
-    var title = ""
-    @JsonNames("enabled") var isEnabled = true
-    private var weekdays: Byte = 0b01111111 //treat as binary, so that each digit represents an boolean.
-    var time = 0 //in seconds since 00:00
-    @JsonNames("target", "whatToTrigger") var triggerTarget = 0L
-    var type = TRIGGER_TYPE_SCHEDULE
+    var title: String = "",
+    @JsonNames("enabled") var isEnabled: Boolean = true,
+    var weekdays: Byte = 0b01111111, //treat as binary, so that each digit represents an boolean.
+    var time: Int = 0, //in seconds since 00:00
+    @JsonNames("target", "whatToTrigger") var triggerTarget: Long = 0L,
+    var type: Int = TRIGGER_TYPE_SCHEDULE
+) {
 
 
     /**
@@ -42,12 +44,8 @@ data class Trigger(var id: Long) {
     }
 
 
-    fun getWeekdays(): Int {
+    fun getWeekdaysInt(): Int {
         return weekdays.toInt()
-    }
-
-    fun setWeekdays(weekdays: Byte) {
-        this.weekdays = weekdays
     }
 
     override fun toString(): String {

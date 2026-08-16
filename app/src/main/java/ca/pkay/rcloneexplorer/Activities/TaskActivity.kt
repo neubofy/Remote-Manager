@@ -25,7 +25,7 @@ import ca.pkay.rcloneexplorer.ui.TaskEditComposeScreen
 import ca.pkay.rcloneexplorer.util.ActivityHelper
 import es.dmoral.toasty.Toasty
 
-class TaskActivity : AppCompatActivity(), FolderSelectorCallback {
+class TaskActivity : AppCompatActivity() {
 
     private lateinit var rcloneInstance: Rclone
     private lateinit var dbHandler: DatabaseHandler
@@ -55,11 +55,6 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback {
                 // Filter created/saved, recomposition will query dbHandler.allFilters
             }
         }
-    }
-
-    override fun selectFolder(path: String) {
-        remotePathOverride = path
-        supportFragmentManager.popBackStack()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,13 +112,7 @@ class TaskActivity : AppCompatActivity(), FolderSelectorCallback {
                         }
                         startActivityForResult(intent, REQUEST_CODE_FP_LOCAL)
                     },
-                    onPickRemotePath = { remote, currentPath ->
-                        val fragment = RemoteFolderPickerFragment.newInstance(remote, this, currentPath)
-                        supportFragmentManager.beginTransaction()
-                            .add(android.R.id.content, fragment, "REMOTE_FOLDER_PICKER")
-                            .addToBackStack("REMOTE_FOLDER_PICKER")
-                            .commit()
-                    },
+                    onPickRemotePath = { _, _ -> },
                     onCreateFilter = {
                         val intent = Intent(this, FilterActivity::class.java)
                         startActivityForResult(intent, REQUEST_CODE_FILTER)

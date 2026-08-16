@@ -9,6 +9,21 @@
             android:key="@string/pref_key_logs"
             android:title="@string/use_logs"
             app:summary="@string/use_logs_summary" />
+
+        <Preference
+            android:key="pref_key_log_file_info"
+            android:title="Diagnostic Log File"
+            android:summary="Download/Remote-Manager/logs/rclone_diagnostic.log" />
+
+        <Preference
+            android:key="pref_key_share_log"
+            android:title="Share Diagnostic Log"
+            android:summary="Send or export the current log file" />
+
+        <Preference
+            android:key="pref_key_clear_log"
+            android:title="Clear Diagnostic Log"
+            android:summary="Delete the current diagnostic log file from storage" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/preference_category_header_rclone">

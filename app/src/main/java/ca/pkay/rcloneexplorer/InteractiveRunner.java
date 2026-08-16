@@ -297,26 +297,34 @@ public class InteractiveRunner {
                         FLog.d(TAG, "run: Match for Step on '%s'", matchedStep.trigger);
                         Action action = matchedStep.getAction();
                         action.onTrigger(bufferContent);
-                        FLog.d(TAG, "run: entering '%s'", action.getInput());
-                        stdin.println(action.getInput());
-                        stdin.flush();
+                        String input = action.getInput();
+                        if (input != null) {
+                            FLog.d(TAG, "run: entering '%s'", input);
+                            stdin.println(input);
+                            stdin.flush();
 
-                        // copy to buffer (full transcript for debugging)
-                        char[] input = action.getInput().toCharArray();
-                        char[] inputTranscript = new char[input.length + 1];
-                        inputTranscript[inputTranscript.length - 1] = '\n';
-                        System.arraycopy(input, 0, inputTranscript, 0, input.length);
-                        for (char c : inputTranscript) {
-                            if (bufPos >= buffer.length) {
-                                bufPos = 0;
+                            // copy to buffer (full transcript for debugging)
+                            char[] inputChars = input.toCharArray();
+                            char[] inputTranscript = new char[inputChars.length + 1];
+                            inputTranscript[inputTranscript.length - 1] = '\n';
+                            System.arraycopy(inputChars, 0, inputTranscript, 0, inputChars.length);
+                            for (char c : inputTranscript) {
+                                if (bufPos >= buffer.length) {
+                                    bufPos = 0;
+                                }
+                                buffer[bufPos] = c;
+                                bufPos++;
                             }
-                            buffer[bufPos] = c;
-                            bufPos++;
                         }
                         // Promote the current step node as main path
                         currentSteps = matchedStep.getFollowing();
                         if (null == currentSteps || 1 > currentSteps.size()) {
-                            FLog.d(TAG, "Run script finished");
+                            FLog.d(TAG, "Run script finished, draining trailing output");
+                            try {
+                                while (stdout.ready() && stdout.read() != -1) {
+                                    // drain available characters
+                                }
+                            } catch (Exception ignored) {}
                             break;
                         }
                     }

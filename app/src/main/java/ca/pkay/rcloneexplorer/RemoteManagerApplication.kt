@@ -2,6 +2,7 @@ package ca.pkay.rcloneexplorer
 
 import android.app.Application
 import androidx.preference.PreferenceManager
+import ca.pkay.rcloneexplorer.data.RcloneThumbnailFetcher
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -17,6 +18,9 @@ class RemoteManagerApplication : Application(), ImageLoaderFactory {
         )
 
         return ImageLoader.Builder(this)
+            .components {
+                add(RcloneThumbnailFetcher.Factory(this@RemoteManagerApplication))
+            }
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.20)

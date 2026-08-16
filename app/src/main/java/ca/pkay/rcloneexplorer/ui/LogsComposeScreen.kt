@@ -271,9 +271,10 @@ fun LogsComposeScreen(
                 TextButton(
                     onClick = {
                         SyncLog.delete(context)
+                        ca.pkay.rcloneexplorer.notifications.ReportNotifications.clearAllNotificationDataStore(context)
                         showClearConfirmation = false
                         loadLogs()
-                        Toasty.success(context, "Logs cleared", Toast.LENGTH_SHORT, true).show()
+                        Toasty.success(context, "Logs and notifications cleared", Toast.LENGTH_SHORT, true).show()
                     }
                 ) {
                     Text("Clear", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)

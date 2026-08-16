@@ -140,6 +140,12 @@ public class Rclone {
 
     public String[] getRcloneEnv(String... overwriteOptions) {
         ArrayList<String> environmentValues = new ArrayList<>();
+
+        // Inherit all parent system environment variables (PATH, ANDROID_ROOT, ANDROID_DATA, etc.)
+        for (java.util.Map.Entry<String, String> entry : System.getenv().entrySet()) {
+            environmentValues.add(entry.getKey() + "=" + entry.getValue());
+        }
+
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
 
         boolean proxyEnabled = pref.getBoolean(context.getString(R.string.pref_key_use_proxy), false);
@@ -184,11 +190,14 @@ public class Rclone {
         Iterator<String> envVarIter = environmentValues.iterator();
         while(envVarIter.hasNext()){
             String envVar = envVarIter.next();
-            String optionName = envVar.substring(0, envVar.indexOf('='));
-            for(String overwrite : overwriteOptions){
-                if(overwrite.startsWith(optionName)) {
-                    envVarIter.remove();
-                    environmentValues.add(overwrite);
+            int eqIdx = envVar.indexOf('=');
+            if (eqIdx > 0) {
+                String optionName = envVar.substring(0, eqIdx);
+                for(String overwrite : overwriteOptions){
+                    if(overwrite.startsWith(optionName + "=")) {
+                        envVarIter.remove();
+                        environmentValues.add(overwrite);
+                    }
                 }
             }
         }
@@ -342,7 +351,6 @@ public class Rclone {
 
             process.waitFor();
             if (process.exitValue() != 0) {
-                Toasty.error(context, context.getString(R.string.error_getting_remotes), Toast.LENGTH_SHORT, true).show();
                 logErrorOutput(process);
                 return new ArrayList<>();
             }
@@ -485,31 +493,30 @@ public class Rclone {
 
     @Nullable
     public Process configCreate(List<String> options) {
-        // https://rclone.org/commands/rclone_config_create/
-        // See the NB-comment why we need to pass --obscure.
-        // Otherwise long passwords fail.
-        options.add("--obscure");
-        return config("create" , options);
+        ArrayList<String> opt = new ArrayList<>(options);
+        opt.add("--obscure");
+        return config("create", opt);
     }
 
     @Nullable
     public Process configUpdate(List<String> options) {
-        return configCreate(options);
+        ArrayList<String> opt = new ArrayList<>(options);
+        opt.add("--obscure");
+        return config("update", opt);
     }
-    
+
     public Process config(String task, List<String> options) {
         String[] command = createCommand("config", task);
         String[] opt = options.toArray(new String[0]);
         String[] commandWithOptions = new String[command.length + options.size()];
 
         System.arraycopy(command, 0, commandWithOptions, 0, command.length);
-
         System.arraycopy(opt, 0, commandWithOptions, command.length, opt.length);
 
         try {
-            return getRuntimeProcess(commandWithOptions);
+            return getRuntimeProcess(commandWithOptions, getRcloneEnv());
         } catch (IOException e) {
-            FLog.e(TAG, "configCreate: error starting rclone", e);
+            FLog.e(TAG, "config" + task + ": error starting rclone", e);
             return null;
         }
     }
@@ -744,7 +751,16 @@ public class Rclone {
     public boolean hasBisyncListing(int taskId, String localPath, String remoteSection) {
         try {
             File taskDir = getTaskBisyncDir(taskId, localPath, remoteSection);
-            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".rclonelink"));
+            // Clean up any stale lock files in workdir if present
+            File[] lockFiles = taskDir.listFiles((dir, name) -> name.contains("lock"));
+            if (lockFiles != null) {
+                for (File lock : lockFiles) {
+                    if (System.currentTimeMillis() - lock.lastModified() > 120_000) {
+                        lock.delete();
+                    }
+                }
+            }
+            File[] files = taskDir.listFiles((dir, name) -> name.endsWith(".lsl") || name.endsWith(".lst") || name.endsWith(".rclonelink"));
             return files != null && files.length > 0;
         } catch (Exception e) {
             return false;
@@ -848,6 +864,72 @@ public class Rclone {
             FLog.e(TAG, "sync: error starting rclone", e);
             return null;
         }
+    }
+
+    public static class ProcessInputStream extends InputStream {
+        private final Process process;
+        private final InputStream delegate;
+
+        public ProcessInputStream(Process process) {
+            this.process = process;
+            this.delegate = process.getInputStream();
+        }
+
+        @Override
+        public int read() throws IOException {
+            return delegate.read();
+        }
+
+        @Override
+        public int read(byte[] b) throws IOException {
+            return delegate.read(b);
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            return delegate.read(b, off, len);
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            return delegate.skip(n);
+        }
+
+        @Override
+        public int available() throws IOException {
+            return delegate.available();
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                delegate.close();
+            } finally {
+                if (process != null) {
+                    process.destroy();
+                }
+            }
+        }
+    }
+
+    public InputStream getFileStream(RemoteItem remote, String path) {
+        String remoteFilePath = remote.getName() + ":";
+        if (remote.isRemoteType(RemoteItem.LOCAL) && (!remote.isAlias() && !remote.isCrypt() && !remote.isCache())) {
+            remoteFilePath += getLocalRemotePathPrefix(remote, context) + "/";
+        }
+        remoteFilePath += path;
+
+        String[] command = createCommandWithOptions("cat", remoteFilePath);
+        String[] env = getRcloneEnv();
+        try {
+            Process process = getRuntimeProcess(command, env);
+            if (process != null) {
+                return new ProcessInputStream(process);
+            }
+        } catch (IOException e) {
+            FLog.e(TAG, "getFileStream: error running rclone cat", e);
+        }
+        return null;
     }
 
     public Process downloadFile(RemoteItem remote, FileItem downloadItem, String downloadPath) {

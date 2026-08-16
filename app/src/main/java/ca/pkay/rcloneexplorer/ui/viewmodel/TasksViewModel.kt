@@ -68,14 +68,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
             if (item.task.id == trigger.triggerTarget) {
                 val updatedTriggers = item.triggers.map { t ->
                     if (t.id == trigger.id) {
-                        Trigger(t.id).apply {
-                            title = t.title
-                            this.isEnabled = isEnabled
-                            time = t.time
-                            setWeekdays(t.getWeekdays().toByte())
-                            triggerTarget = t.triggerTarget
-                            type = t.type
-                        }
+                        t.copy(isEnabled = isEnabled)
                     } else t
                 }
                 item.copy(triggers = updatedTriggers)
