@@ -61,6 +61,11 @@ public class Log2File {
     }
 
     public void log(String message) {
+        boolean loggingEnabled = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.pref_key_logs), false);
+        if (!loggingEnabled) {
+            return;
+        }
         logExecutor.execute(() -> {
             try {
                 File logFile = getDiagnosticLogFile(context);
