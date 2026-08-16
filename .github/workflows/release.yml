@@ -11,9 +11,17 @@ on:
   push:
     branches:
       - '**'
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'rclone/**'
+      - 'safdav/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
 
 permissions:
   contents: write
