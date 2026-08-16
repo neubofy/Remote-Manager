@@ -33,23 +33,38 @@ public class RemoteConfigHelper {
         return remotePath;
     }
 
-    public static void updateAndWait(Context context, ArrayList<String> options) {
+    public static boolean updateAndWait(Context context, ArrayList<String> options) {
         Rclone rclone = new Rclone(context);
         Process process = rclone.configUpdate(options);
-        rcloneRun(process, context, options);
+        return rcloneRun(process, context, options);
     }
 
-    public static void setupAndWait(Context context, ArrayList<String> options) {
+    public static boolean setupAndWait(Context context, ArrayList<String> options) {
         Rclone rclone = new Rclone(context);
         Process process = rclone.configCreate(options);
-        rcloneRun(process, context, options);
+        return rcloneRun(process, context, options);
     }
 
-    private static void rcloneRun(Process process, Context context, ArrayList<String> options) {
+    private static boolean rcloneRun(Process process, Context context, ArrayList<String> options) {
         if (null == process) {
-            Toasty.error(context, context.getString(R.string.error_creating_remote), Toast.LENGTH_SHORT, true).show();
-            return;
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                Toasty.error(context, context.getString(R.string.error_creating_remote), Toast.LENGTH_SHORT, true).show()
+            );
+            return false;
         }
+
+        StringBuilder errSb = new StringBuilder();
+        Thread errThread = new Thread(() -> {
+            try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(process.getErrorStream()))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    errSb.append(line).append("\n");
+                }
+            } catch (Exception ignored) {}
+        });
+        errThread.setDaemon(true);
+        errThread.start();
+
         int exitCode;
         while (true) {
             try {
@@ -62,10 +77,24 @@ public class RemoteConfigHelper {
                 } catch (IllegalStateException ignored) {}
             }
         }
+        try {
+            errThread.join(1000);
+        } catch (InterruptedException ignored) {}
+
         if (0 != exitCode) {
-            Toasty.error(context, context.getString(R.string.error_creating_remote), Toast.LENGTH_SHORT, true).show();
+            String errDetail = errSb.toString().trim();
+            if (!errDetail.isEmpty()) {
+                ca.pkay.rcloneexplorer.util.FLog.e("RemoteConfigHelper", "Rclone config error: " + errDetail);
+            }
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                Toasty.error(context, context.getString(R.string.error_creating_remote), Toast.LENGTH_SHORT, true).show()
+            );
+            return false;
         } else {
-            Toasty.success(context, context.getString(R.string.remote_creation_success), Toast.LENGTH_SHORT, true).show();
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                Toasty.success(context, context.getString(R.string.remote_creation_success), Toast.LENGTH_SHORT, true).show()
+            );
+            return true;
         }
     }
 

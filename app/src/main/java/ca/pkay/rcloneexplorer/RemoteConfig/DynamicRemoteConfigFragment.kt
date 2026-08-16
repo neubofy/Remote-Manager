@@ -39,6 +39,10 @@ import ca.pkay.rcloneexplorer.rclone.ProviderOption
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 
@@ -122,24 +126,8 @@ class DynamicRemoteConfigFragment(
             requireActivity().finish()
         }
 
-        this.mUseOauth = when (mProvider?.name?.lowercase()) {
-            "box",
-            "dropbox",
-            "pcloud",
-            "yandex",
-            "drive",
-            "google photos",
-            "onedrive",
-            "google cloud storage",
-            "mailru",
-            "jottacloud",
-            "putio",
-            "sharefile",
-            "amazon cloud drive",
-            "premiumizeme"
-            -> true
-            else -> false
-        }
+        this.mUseOauth = mProvider?.options?.any { it.name.equals("token", ignoreCase = true) } == true ||
+                mProvider?.options?.any { it.name.equals("client_id", ignoreCase = true) && it.help.contains("OAuth", ignoreCase = true) } == true
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -572,8 +560,15 @@ class DynamicRemoteConfigFragment(
         }
 
         if(mIsEditTask) {
-            RemoteConfigHelper.updateAndWait(context, options)
-            requireActivity().finish()
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val success = RemoteConfigHelper.updateAndWait(context, options)
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        requireActivity().finish()
+                    }
+                }
+            }
+            return
         }
 
         if(mUseOauth){
@@ -582,8 +577,19 @@ class DynamicRemoteConfigFragment(
                 requireContext(), rclone!!
             ).execute()
         } else {
-            RemoteConfigHelper.setupAndWait(context, options)
-            requireActivity().finish()
+            mAuthView?.visibility = View.VISIBLE
+            mFormView?.visibility = View.GONE
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val success = RemoteConfigHelper.setupAndWait(context, options)
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        requireActivity().finish()
+                    } else {
+                        mAuthView?.visibility = View.GONE
+                        mFormView?.visibility = View.VISIBLE
+                    }
+                }
+            }
         }
     }
 }

@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class OauthHelper {
 
     private static final String TAG = "OAuthHelper";
-    private static final String regex = "(?:(?:go to the following link:|Please go to:?)\\s*|)(https?://[^\\s'\"]+)";
+    private static final String regex = "(?:(?:go to the following link:|Please go to:?)\\s+)(https?://[^\\s'\"]+)|(http://127\\.0\\.0\\.1:53682/[^\\s'\"]+)|(http://localhost:53682/[^\\s'\"]+)";
     private static final OauthProcessToken oauthProcessToken = new OauthProcessToken();
 
     // Since OAuth always blocks port 53682, only a single authentication
@@ -107,7 +107,7 @@ public class OauthHelper {
      * tab for the user. Note: this consumes the processes InputStream (stdout).
      */
     public static class UrlAuthThread extends Thread {
-        private static final Pattern pattern = Pattern.compile(regex, 0);
+        private static final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 
         private static final String TAG = "UrlAuthThread";
         private final Process process;
@@ -153,8 +153,15 @@ public class OauthHelper {
             Matcher matcher = pattern.matcher(line);
             if (matcher.find()) {
                 String url = matcher.group(1);
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(2);
+                }
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(3);
+                }
                 if (url != null && !url.isEmpty()) {
                     urlOpened = true;
+                    FLog.i(TAG, "Launching OAuth authentication URL in browser: " + url);
                     launchBrowser(context, url);
                 }
             }
@@ -189,7 +196,7 @@ public class OauthHelper {
 
     private static class OauthAction implements InteractiveRunner.Action {
 
-        private static final Pattern pattern = Pattern.compile(regex, 0);
+        private static final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
         private Context context;
 
         public OauthAction(Context context) {
@@ -201,7 +208,14 @@ public class OauthHelper {
             Matcher matcher = pattern.matcher(cliBuffer);
             if (matcher.find()) {
                 String url = matcher.group(1);
-                if (url != null) {
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(2);
+                }
+                if (url == null || url.isEmpty()) {
+                    url = matcher.group(3);
+                }
+                if (url != null && !url.isEmpty()) {
+                    FLog.i(TAG, "onTrigger: launching browser for " + url);
                     launchBrowser(context, url);
                 }
             } else {
@@ -216,7 +230,7 @@ public class OauthHelper {
     }
 
     public static class InitOauthStep extends InteractiveRunner.Step {
-        private static final String TRIGGER = "Log in and authorize rclone for access";
+        private static final String TRIGGER = "127.0.0.1:53682";
 
         /**
          * An OAuth step that launches a browser. ATTENTION: must be registered

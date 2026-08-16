@@ -171,6 +171,11 @@ class RemotesViewModel(application: Application) : AndroidViewModel(application)
                     val process = rclone.reconnectRemote(remote)
                     if (process != null) {
                         val appContext = context.applicationContext
+
+                        // Start dedicated URL listener to ensure browser opens immediately when link is printed
+                        val urlAuthThread = OauthHelper.UrlAuthThread(process, appContext)
+                        urlAuthThread.start()
+
                         val start = Step("y/n> ", Step.CONTAINS, Step.INTERLEAVED, StringAction("y"))
                         val secondQuestion = start.addFollowing("y/n> ", "y")
                         val finishStep = OauthFinishStep().apply {
