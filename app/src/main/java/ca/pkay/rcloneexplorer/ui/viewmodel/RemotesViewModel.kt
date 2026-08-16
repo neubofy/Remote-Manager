@@ -5,15 +5,9 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
-import ca.pkay.rcloneexplorer.InteractiveRunner
-import ca.pkay.rcloneexplorer.InteractiveRunner.Step
-import ca.pkay.rcloneexplorer.InteractiveRunner.StringAction
 import ca.pkay.rcloneexplorer.Items.RemoteItem
 import ca.pkay.rcloneexplorer.R
 import ca.pkay.rcloneexplorer.Rclone
-import ca.pkay.rcloneexplorer.RemoteConfig.OauthHelper
-import ca.pkay.rcloneexplorer.RemoteConfig.OauthHelper.InitOauthStep
-import ca.pkay.rcloneexplorer.RemoteConfig.OauthHelper.OauthFinishStep
 import ca.pkay.rcloneexplorer.util.FLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -160,58 +154,6 @@ class RemotesViewModel(application: Application) : AndroidViewModel(application)
             }
             _uiState.update { it.copy(infoMessage = "Deleted remote \"${remote.displayName}\"") }
             loadRemotes()
-        }
-    }
-
-    fun reconnectRemote(remote: RemoteItem, context: Context) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(infoMessage = "Re-authenticating ${remote.displayName}...") }
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val process = rclone.reconnectRemote(remote)
-                    if (process != null) {
-                        val appContext = context.applicationContext
-                        val start = Step("y/n> ", Step.CONTAINS, Step.INTERLEAVED, StringAction("y"))
-                        val secondQuestion = start.addFollowing("y/n> ", "y")
-                        val finishStep = OauthFinishStep().apply {
-                            addFollowing("y/n> ", "n")
-                            addFollowing("y/e/d> ", "y")
-                        }
-                        val postOauth = secondQuestion.addFollowing(InitOauthStep(appContext))
-                            .addFollowing(finishStep)
-                        
-                        // Alternative branch: in case rclone immediately prompts for OAuth without asking a second y/n
-                        start.addFollowing(InitOauthStep(appContext))
-                            .addFollowing(finishStep)
-
-                        if (RemoteItem.ONEDRIVE == remote.type) {
-                            postOauth.addFollowing("OneDrive", "onedrive")
-                                .addFollowing("drive", "0")
-                                .addFollowing("y/n", "y")
-                        }
-
-                        val runner = InteractiveRunner(start, { e ->
-                            FLog.e(TAG, "OAuth recipe error for ${remote.typeReadable}", e)
-                            process.destroy()
-                        }, process)
-                        OauthHelper.registerRunner(runner)
-                        runner.runSteps()
-                        val exitCode = process.waitFor()
-                        exitCode == 0
-                    } else {
-                        false
-                    }
-                } catch (e: Exception) {
-                    FLog.e(TAG, "Failed reconnecting remote", e)
-                    false
-                }
-            }
-            if (success) {
-                _uiState.update { it.copy(infoMessage = "Successfully re-authenticated ${remote.displayName}") }
-            } else {
-                _uiState.update { it.copy(infoMessage = "Re-authentication cancelled or failed") }
-            }
-            loadRemotes(force = true)
         }
     }
 

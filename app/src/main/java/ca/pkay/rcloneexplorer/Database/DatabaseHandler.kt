@@ -326,7 +326,7 @@ class DatabaseHandler(private val mContext: Context?) :
     }
 
     private val triggerProjection: Array<String>
-        private get() = arrayOf(
+        get() = arrayOf(
                 Trigger.COLUMN_NAME_ID,
                 Trigger.COLUMN_NAME_TITLE,
                 Trigger.COLUMN_NAME_ENABLED,
@@ -433,7 +433,7 @@ class DatabaseHandler(private val mContext: Context?) :
     }
 
     private val filterProjection: Array<String>
-        private get() = arrayOf(
+        get() = arrayOf(
                 Filter.COLUMN_NAME_ID,
                 Filter.COLUMN_NAME_TITLE,
                 Filter.COLUMN_NAME_FILTERS,

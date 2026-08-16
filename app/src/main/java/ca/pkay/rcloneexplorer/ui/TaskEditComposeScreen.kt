@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -49,7 +51,6 @@ fun TaskEditComposeScreen(
     onSaveTask: (Task) -> Unit,
     onDeleteTask: ((Task) -> Unit)?,
     onPickLocalPath: () -> Unit,
-    onPickRemotePath: (RemoteItem, String) -> Unit,
     onCreateFilter: () -> Unit,
     onBack: () -> Unit,
     localPathOverride: String? = null,
@@ -108,7 +109,7 @@ fun TaskEditComposeScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -130,6 +131,7 @@ fun TaskEditComposeScreen(
                             val taskToSave = Task(existingTask?.id ?: 0L).apply {
                                 this.title = title.ifBlank { "${selectedRemote.name}: $remotePath" }
                                 this.remoteId = selectedRemote.name
+                                @Suppress("DEPRECATION")
                                 this.remoteType = selectedRemote.type
                                 this.remotePath = remotePath
                                 this.localPath = localPath
@@ -223,7 +225,7 @@ fun TaskEditComposeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) }
                     )
 
                     // Remote Selector Dropdown
@@ -428,7 +430,7 @@ fun TaskEditComposeScreen(
                         )
                     }
 
-                    Divider(color = Color.White.copy(alpha = 0.06f))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
 
                     // Delete Excluded Switch
                     val isBiSync = direction == SyncDirectionObject.SYNC_BIDIRECTIONAL || direction == SyncDirectionObject.SYNC_BIDIRECTIONAL_INITIAL
@@ -457,7 +459,7 @@ fun TaskEditComposeScreen(
                         )
                     }
 
-                    Divider(color = Color.White.copy(alpha = 0.06f))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
 
                     // Filter Profile Dropdown
                     Row(

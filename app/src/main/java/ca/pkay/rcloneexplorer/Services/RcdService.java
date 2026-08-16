@@ -108,7 +108,7 @@ public class RcdService extends Service implements RcloneRcd.JobsUpdateHandler {
         String statusLine = getString(R.string.rcd_service_notification_stats_template, running, finished, failed);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24)
                 .setContentTitle(getString(R.string.rcd_service_notification_running_in_background))
                 .setContentText(statusLine)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -181,7 +181,7 @@ public class RcdService extends Service implements RcloneRcd.JobsUpdateHandler {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, foregroundIntent, FlagsUtil.Companion.getFlagImmutable());
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24)
                 .setContentTitle(getString(R.string.rcd_service_notification_running_in_background))
                 .setContentText(getString(R.string.rcd_service_notification_no_active_jobs))
                 .setPriority(NotificationCompat.PRIORITY_LOW)

@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -68,7 +70,7 @@ fun TasksComposeScreen(
                 actions = {
                     IconButton(onClick = onOpenLogsClick) {
                         Icon(
-                            imageVector = Icons.Outlined.ReceiptLong,
+                            imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                             contentDescription = "Task & Sync Logs",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -180,11 +182,6 @@ fun TasksComposeScreen(
                         onDeleteTrigger = { trigger ->
                             triggerToDelete = Pair(trigger, item.task.id)
                         },
-                        onDeleteAllTriggersForTask = {
-                            if (item.triggers.isNotEmpty()) {
-                                triggerToDelete = Pair(item.triggers.first(), item.task.id)
-                            }
-                        },
                         onDeleteTask = { taskToDelete = item.task }
                     )
                 }
@@ -257,7 +254,6 @@ fun TaskCard(
     onManageTriggers: () -> Unit,
     onEditTrigger: (Trigger) -> Unit,
     onDeleteTrigger: (Trigger) -> Unit,
-    onDeleteAllTriggersForTask: () -> Unit,
     onDeleteTask: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -377,16 +373,6 @@ fun TaskCard(
                                     onEditTask()
                                 }
                             )
-                            if (triggers.isNotEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("Delete Trigger") },
-                                    leadingIcon = { Icon(Icons.Outlined.AlarmOff, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showMenu = false
-                                        onDeleteAllTriggersForTask()
-                                    }
-                                )
-                            }
                             DropdownMenuItem(
                                 text = { Text("Delete Task") },
                                 leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },

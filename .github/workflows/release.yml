@@ -68,6 +68,17 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Extract Version Name
+        id: version
+        run: |
+          VERSION_NAME=$(grep -oP "versionName\s+['\"]\K[^'\"]+" app/build.gradle)
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Could not extract versionName from app/build.gradle!"
+            exit 1
+          fi
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "Extracted App Version: $VERSION_NAME"
+
       - name: Resolve Latest Rclone Engine Version
         id: rclone_version
         run: |

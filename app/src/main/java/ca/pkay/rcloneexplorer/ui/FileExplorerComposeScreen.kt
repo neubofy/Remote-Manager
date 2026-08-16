@@ -67,7 +67,6 @@ fun FileExplorerComposeScreen(
     onUploadFiles: () -> Unit,
     onDownloadSelected: (List<FileItem>) -> Unit,
     onMoveSelected: (List<FileItem>) -> Unit,
-    onSortClicked: () -> Unit,
     onOpenServeDialog: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -611,7 +610,7 @@ fun FileExplorerComposeScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Default.DriveFileMove, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Move Here")
                             }

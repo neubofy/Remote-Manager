@@ -32,6 +32,7 @@ class GeneralPreferencesFragment : PreferenceFragmentCompat() {
     private lateinit var sharedPreferences: SharedPreferences
 
 
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_general_preferences, rootKey)
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())

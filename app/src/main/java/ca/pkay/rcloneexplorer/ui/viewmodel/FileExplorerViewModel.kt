@@ -183,9 +183,9 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
                 // If navigating backward: DO NOT background refresh (zero bandwidth / jitter)
                 // If navigating forward/direct: schedule 2-second debounced background refresh
                 if (!isNavigatingBack) {
-                    backgroundRefreshJob = viewModelScope.launch {
+                    backgroundRefreshJob = viewModelScope.launch refreshLaunch@{
                         delay(2000) // 2-second debounce
-                        if (!isActive || _uiState.value.currentPath != path) return@launch
+                        if (!isActive || _uiState.value.currentPath != path) return@refreshLaunch
 
                         _uiState.update { it.copy(isRefreshing = true) }
                         val freshItems = withContext(Dispatchers.IO) {
@@ -197,7 +197,7 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
                             }
                         }
 
-                        if (!isActive || _uiState.value.currentPath != path) return@launch
+                        if (!isActive || _uiState.value.currentPath != path) return@refreshLaunch
 
                         if (freshItems != null) {
                             DirectoryCacheRepository.putWithDiskPersist(getApplication(), currentRemote.name, path, freshItems)

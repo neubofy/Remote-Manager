@@ -16,7 +16,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -225,7 +226,7 @@ fun LogsComposeScreen(
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.ReceiptLong,
+                                imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .padding(20.dp)

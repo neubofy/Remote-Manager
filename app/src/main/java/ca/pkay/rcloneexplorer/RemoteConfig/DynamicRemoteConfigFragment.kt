@@ -110,8 +110,12 @@ class DynamicRemoteConfigFragment(
         }
 
         if (mOptionMap.isEmpty()) {
-            @Suppress("UNCHECKED_CAST")
-            val savedMap = (arguments?.getSerializable(ARG_OPTION_MAP) ?: savedInstanceState?.getSerializable(ARG_OPTION_MAP)) as? HashMap<String, String>
+            @Suppress("UNCHECKED_CAST", "DEPRECATION")
+            val savedMap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                (arguments?.getSerializable(ARG_OPTION_MAP, HashMap::class.java) ?: savedInstanceState?.getSerializable(ARG_OPTION_MAP, HashMap::class.java)) as? HashMap<String, String>
+            } else {
+                (arguments?.getSerializable(ARG_OPTION_MAP) ?: savedInstanceState?.getSerializable(ARG_OPTION_MAP)) as? HashMap<String, String>
+            }
             if (savedMap != null) {
                 mIsEditTask = true
                 mOptionMap = savedMap
@@ -426,7 +430,6 @@ class DynamicRemoteConfigFragment(
         suffixContainer.boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
         suffixContainer.setPadding(padding, padding, 0, 0)
         suffixContainer.layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1.3f)
-        valueInput.setText(suffix)
 
         val items = listOf("P", "T", "G", "M", "K", "B")
         val adapter = ArrayAdapter(
@@ -439,7 +442,9 @@ class DynamicRemoteConfigFragment(
         suffixSpinner.setPadding(padding)
         suffixSpinner.hint = getString(R.string.dynamic_config_suffixselector_suffix_hint)
         suffixSpinner.setAdapter(adapter)
-        //suffixSpinner.isEnabled = false
+        if (suffix.isNotEmpty()) {
+            suffixSpinner.setText(suffix, false)
+        }
         suffixContainer.addView(suffixSpinner)
 
 

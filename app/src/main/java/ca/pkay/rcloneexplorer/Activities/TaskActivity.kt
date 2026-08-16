@@ -112,7 +112,6 @@ class TaskActivity : AppCompatActivity() {
                         }
                         startActivityForResult(intent, REQUEST_CODE_FP_LOCAL)
                     },
-                    onPickRemotePath = { _, _ -> },
                     onCreateFilter = {
                         val intent = Intent(this, FilterActivity::class.java)
                         startActivityForResult(intent, REQUEST_CODE_FILTER)

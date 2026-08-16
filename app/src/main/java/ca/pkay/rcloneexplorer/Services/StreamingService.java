@@ -97,7 +97,11 @@ public class StreamingService extends IntentService {
             builder.setContentText(getString(R.string.streaming_service_notification_content, port));
         }
 
-        startForeground(PERSISTENT_NOTIFICATION_ID, builder.build());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(PERSISTENT_NOTIFICATION_ID, builder.build(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(PERSISTENT_NOTIFICATION_ID, builder.build());
+        }
 
         // Acquire WakeLock to prevent CPU sleep during media stream
         try {

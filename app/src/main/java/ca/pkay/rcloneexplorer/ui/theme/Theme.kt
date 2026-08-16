@@ -4,6 +4,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import ca.pkay.rcloneexplorer.util.ActivityHelper
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF3B82F6),
@@ -49,7 +51,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun RemoteManagerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = ActivityHelper.isDarkTheme(LocalContext.current),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

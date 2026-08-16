@@ -61,7 +61,7 @@ class ConfigCreate internal constructor(
         return this
     }
 
-    fun cancel(mayInterruptIfRunning: Boolean) {
+    fun cancel(@Suppress("UNUSED_PARAMETER") mayInterruptIfRunning: Boolean = true) {
         job?.cancel()
         scope.cancel()
     }
