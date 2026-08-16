@@ -122,14 +122,21 @@ class DynamicRemoteConfigFragment(
             requireActivity().finish()
         }
 
-        this.mUseOauth = when (mProvider?.name) {
+        this.mUseOauth = when (mProvider?.name?.lowercase()) {
             "box",
             "dropbox",
             "pcloud",
             "yandex",
             "drive",
             "google photos",
-            "onedrive"
+            "onedrive",
+            "google cloud storage",
+            "mailru",
+            "jottacloud",
+            "putio",
+            "sharefile",
+            "amazon cloud drive",
+            "premiumizeme"
             -> true
             else -> false
         }

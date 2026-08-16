@@ -485,30 +485,27 @@ public class Rclone {
     @Nullable
     public Process configCreate(List<String> options) {
         // https://rclone.org/commands/rclone_config_create/
-        // See the NB-comment why we need to pass --obscure.
-        // Otherwise long passwords fail.
-        options.add("--obscure");
-        return config("create" , options);
+        // Pass --obscure via createCommand flag so positional parameters remain strictly valid
+        return config("create", options);
     }
 
     @Nullable
     public Process configUpdate(List<String> options) {
-        return configCreate(options);
+        return config("update", options);
     }
-    
+
     public Process config(String task, List<String> options) {
-        String[] command = createCommand("config", task);
+        String[] command = createCommand("--obscure", "config", task);
         String[] opt = options.toArray(new String[0]);
         String[] commandWithOptions = new String[command.length + options.size()];
 
         System.arraycopy(command, 0, commandWithOptions, 0, command.length);
-
         System.arraycopy(opt, 0, commandWithOptions, command.length, opt.length);
 
         try {
-            return getRuntimeProcess(commandWithOptions);
+            return getRuntimeProcess(commandWithOptions, getRcloneEnv());
         } catch (IOException e) {
-            FLog.e(TAG, "configCreate: error starting rclone", e);
+            FLog.e(TAG, "config" + task + ": error starting rclone", e);
             return null;
         }
     }

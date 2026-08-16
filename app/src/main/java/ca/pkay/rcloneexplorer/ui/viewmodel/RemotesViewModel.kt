@@ -173,12 +173,16 @@ class RemotesViewModel(application: Application) : AndroidViewModel(application)
                         val appContext = context.applicationContext
                         val start = Step("y/n> ", Step.CONTAINS, Step.INTERLEAVED, StringAction("y"))
                         val secondQuestion = start.addFollowing("y/n> ", "y")
+                        val finishStep = OauthFinishStep().apply {
+                            addFollowing("y/n> ", "n")
+                            addFollowing("y/e/d> ", "y")
+                        }
                         val postOauth = secondQuestion.addFollowing(InitOauthStep(appContext))
-                            .addFollowing(OauthFinishStep())
+                            .addFollowing(finishStep)
                         
                         // Alternative branch: in case rclone immediately prompts for OAuth without asking a second y/n
                         start.addFollowing(InitOauthStep(appContext))
-                            .addFollowing(OauthFinishStep())
+                            .addFollowing(finishStep)
 
                         if (RemoteItem.ONEDRIVE == remote.type) {
                             postOauth.addFollowing("OneDrive", "onedrive")

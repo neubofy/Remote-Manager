@@ -720,6 +720,7 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
                         val exitCode = proc?.waitFor() ?: -1
                         if (exitCode == 0) {
                             deletedCount++
+                            ThumbnailCacheManager.removeThumbnail(getApplication(), item)
                         } else {
                             failCount++
                         }
@@ -769,7 +770,10 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
             withContext(Dispatchers.IO) {
                 try {
                     val proc = rclone.deleteItems(currentRemote, fileItem)
-                    proc?.waitFor()
+                    val exitCode = proc?.waitFor() ?: -1
+                    if (exitCode == 0) {
+                        ThumbnailCacheManager.removeThumbnail(getApplication(), fileItem)
+                    }
                 } catch (e: Exception) {
                     FLog.e(TAG, "Error deleting item ${fileItem.name}", e)
                 }
@@ -819,9 +823,13 @@ class FileExplorerViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update { it.copy(isRefreshing = true) }
             val moved = withContext(Dispatchers.IO) {
                 try {
-                    rclone.moveTo(currentRemote, cleanOld, cleanNew)
+                    val success = rclone.moveTo(currentRemote, cleanOld, cleanNew)
+                    if (success) {
+                        ThumbnailCacheManager.removeThumbnail(getApplication(), fileItem)
+                    }
+                    success
                 } catch (e: Exception) {
-                    FLog.e(TAG, "Failed renaming file", e)
+                    FLog.e(TAG, "Error renaming item ${fileItem.name} to $newName", e)
                     false
                 }
             }

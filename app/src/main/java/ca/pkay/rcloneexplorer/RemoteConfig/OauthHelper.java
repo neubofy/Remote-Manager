@@ -113,6 +113,7 @@ public class OauthHelper {
         private final Process process;
         private final Context context;
         private volatile boolean stopped = false;
+        private volatile boolean urlOpened = false;
 
         public UrlAuthThread(Process process, Context context) {
             this.process = process;
@@ -120,21 +121,21 @@ public class OauthHelper {
         }
 
         public void run() {
+            Thread stdoutThread = new Thread(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        checkLineForUrl(line);
+                    }
+                } catch (Exception ignored) {}
+            });
+            stdoutThread.setDaemon(true);
+            stdoutThread.start();
+
             try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                 String line;
-                while (null != (line = br.readLine())) {
-                    Matcher matcher = pattern.matcher(line);
-                    if (matcher.find()) {
-                        String url = matcher.group(1);
-                        if (url != null) {
-                            launchBrowser(context, url);
-                        }
-
-                        // Do NOT break here, or the stream will be closed.
-                        // When rclone then tries to write to the stream, it will receive SIGPIPE
-                        // and rclone will exit confused why it can't just output its log messages.
-                        // Instead, wait for rclone to close the stream.
-                    }
+                while ((line = br.readLine()) != null) {
+                    checkLineForUrl(line);
                 }
             } catch (IOException e) {
                 if (stopped) {
@@ -144,6 +145,18 @@ public class OauthHelper {
                 stopped = true;
                 FLog.e(TAG, "doInBackground: could not read auth url", e);
                 process.destroy();
+            }
+        }
+
+        private synchronized void checkLineForUrl(String line) {
+            if (line == null || urlOpened) return;
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.find()) {
+                String url = matcher.group(1);
+                if (url != null && !url.isEmpty()) {
+                    urlOpened = true;
+                    launchBrowser(context, url);
+                }
             }
         }
 
