@@ -27,7 +27,6 @@ fun RemotePropertiesSheet(
     isLoadingQuota: Boolean,
     onFetchQuota: () -> Unit,
     onEditConfig: () -> Unit,
-    onReconnect: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -162,31 +161,14 @@ fun RemotePropertiesSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Button(
+                onClick = onEditConfig,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = onEditConfig,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Edit Config")
-                }
-
-                if (remote.isOAuth) {
-                    Button(
-                        onClick = onReconnect,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Re-auth")
-                    }
-                }
+                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Edit Configuration")
             }
 
             Spacer(modifier = Modifier.height(16.dp))

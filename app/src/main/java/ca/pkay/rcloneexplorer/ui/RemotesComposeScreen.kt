@@ -40,7 +40,6 @@ fun RemotesComposeScreen(
     onAddNewRemote: () -> Unit,
     onEditRemoteConfig: (RemoteItem) -> Unit
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -211,8 +210,7 @@ fun RemotesComposeScreen(
                                     onPropertiesClick = { selectedRemoteForProperties = remote },
                                     onTogglePin = { viewModel.togglePinRemote(remote) },
                                     onDeleteClick = { remoteToDelete = remote },
-                                    onEditClick = { onEditRemoteConfig(remote) },
-                                    onReconnectClick = { viewModel.reconnectRemote(remote, context) }
+                                    onEditClick = { onEditRemoteConfig(remote) }
                                 )
                             }
                         }
@@ -258,10 +256,6 @@ fun RemotesComposeScreen(
                 selectedRemoteForProperties = null
                 onEditRemoteConfig(remote)
             },
-            onReconnect = {
-                selectedRemoteForProperties = null
-                viewModel.reconnectRemote(remote, context)
-            },
             onDismiss = { selectedRemoteForProperties = null }
         )
     }
@@ -302,8 +296,7 @@ fun RemoteCard(
     onPropertiesClick: () -> Unit,
     onTogglePin: () -> Unit,
     onDeleteClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onReconnectClick: () -> Unit
+    onEditClick: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -398,16 +391,6 @@ fun RemoteCard(
                                 onEditClick()
                             }
                         )
-                        if (remote.isOAuth) {
-                            DropdownMenuItem(
-                                text = { Text("Reconnect OAuth") },
-                                leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    onReconnectClick()
-                                }
-                            )
-                        }
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },

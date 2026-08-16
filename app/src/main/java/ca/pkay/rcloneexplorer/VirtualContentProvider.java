@@ -155,9 +155,9 @@ public class VirtualContentProvider extends SingleRootProvider {
         startBindService(context);
         awaitRcdService();
         if (null != rcdService) {
-            FLog.w(TAG, "acquireRcd: rcd not ready in time");
             return true;
         }
+        FLog.w(TAG, "acquireRcd: rcd not ready in time");
         return false;
     }
 
@@ -174,7 +174,7 @@ public class VirtualContentProvider extends SingleRootProvider {
 
     private void awaitRcdService() {
         long waitTime = 500;
-        while (waitTime > 0 && null != rcdService) {
+        while (waitTime > 0 && null == rcdService) {
             FLog.d(TAG, "acquireRcd: waiting for service");
             long waitStart = System.nanoTime();
             try {

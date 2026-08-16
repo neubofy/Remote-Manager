@@ -81,6 +81,9 @@ public class FilePicker extends AppCompatActivity implements FilePickerAdapter.O
         if (savedInstanceState != null) {
             destinationPickerType = savedInstanceState.getBoolean(SAVED_DESTINATION_PICKER_TYPE);
             availableStorage = new ArrayList<>(getStorageDirectories());
+            if (availableStorage.isEmpty()) {
+                availableStorage.add(Environment.getExternalStorageDirectory().getAbsolutePath());
+            }
             String path = savedInstanceState.getString(SAVED_PATH);
             if (path == null) {
                 root = current = new File(availableStorage.get(0));
@@ -97,6 +100,9 @@ public class FilePicker extends AppCompatActivity implements FilePickerAdapter.O
         } else {
             destinationPickerType = getIntent().getBooleanExtra(FILE_PICKER_PICK_DESTINATION_TYPE, false);
             availableStorage = new ArrayList<>(getStorageDirectories());
+            if (availableStorage.isEmpty()) {
+                availableStorage.add(Environment.getExternalStorageDirectory().getAbsolutePath());
+            }
             root = current = new File(availableStorage.get(0));
         }
 

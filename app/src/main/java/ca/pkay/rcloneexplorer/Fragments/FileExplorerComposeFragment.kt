@@ -122,7 +122,6 @@ class FileExplorerComposeFragment : Fragment(), SortDialog.OnClickListener, Serv
                         onUploadFiles = { startUploadPicker() },
                         onDownloadSelected = { list -> startDownloadPicker(list) },
                         onMoveSelected = { viewModel.cutSelected() },
-                        onSortClicked = { showSortDialog() },
                         onOpenServeDialog = { showServeDialog() }
                     )
                 }

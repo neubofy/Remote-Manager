@@ -222,7 +222,11 @@ public class TriggerService extends Service {
                     .setSmallIcon(R.drawable.ic_twotone_rounded_cloud_sync_24);
             notification = notificationBuilder.build();
         }
-        startForeground(SERVICE_NOTIFICATION_ID, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(SERVICE_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(SERVICE_NOTIFICATION_ID, notification);
+        }
     }
 
     private void createNotificationChannel() {

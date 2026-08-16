@@ -107,9 +107,7 @@ public class RemotePropertiesDialog extends DialogFragment {
         storageContainer.setOnClickListener(v -> updateStorageUsage());
 
         View authorizeContainer = view.findViewById(R.id.remote_authorization_container);
-        if (remote.isOAuth()) {
-            authorizeContainer.setOnClickListener(v -> new ReconnectRemoteTask(rclone, remote, context).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR));
-        } else {
+        if (authorizeContainer != null) {
             authorizeContainer.setVisibility(View.GONE);
         }
 
@@ -206,72 +204,6 @@ public class RemotePropertiesDialog extends DialogFragment {
         protected void onPostExecute(Rclone.AboutResult result) {
             super.onPostExecute(result);
             handler.onResult(result);
-        }
-    }
-
-    private static class ReconnectRemoteTask extends AsyncTask<Void, Void, Void> {
-
-        private Rclone rclone;
-        private RemoteItem remoteItem;
-        private Context context;
-
-        public ReconnectRemoteTask(Rclone rclone, RemoteItem remoteItem, Context context) {
-            this.rclone = rclone;
-            this.remoteItem = remoteItem;
-            this.context = context;
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            Context appContext = context.getApplicationContext();
-            final Process process = rclone.reconnectRemote(remoteItem);
-            if (process != null) {
-                // Since this is invoked on already existing remotes, we need
-                // to confirm renewing the token.
-                //
-                // Already have a token - refresh?
-                // y) Yes
-                // n) No
-                // y/n> Use auto config?
-                //  * Say Y if not sure
-                //  * Say N if you are working on a remote or headless machine
-                // y) Yes
-                // n) No
-                // y/n>
-
-                // recipe definition
-                Step start = new Step("y/n> ", new StringAction("y"));
-                Step postOauth = start.addFollowing("y/n> ", "y")
-                        .addFollowing(new InitOauthStep(context))
-                        .addFollowing(new OauthFinishStep());
-
-                if (RemoteItem.ONEDRIVE == remoteItem.getType()) {
-                    // OneDrive needs active drive selection
-                    postOauth.addFollowing("OneDrive Personal or Business", "onedrive")
-                            .addFollowing("Chose drive to use:> ", "0")
-                            .addFollowing("y/n> ", "y");
-                }
-
-                ErrorHandler errorHandler = e -> {
-                    FLog.e(TAG, "onError: The recipe for %s is probably bad", e, remoteItem.getTypeReadable());
-                    process.destroy();
-                    // Appcenter #965158510
-                    if (e instanceof ActivityNotFoundException) {
-                        Toasty.error(appContext, appContext.getString(R.string.no_app_found_for_this_link), Toast.LENGTH_LONG).show();
-                    }
-                };
-
-                InteractiveRunner interactiveRunner = new InteractiveRunner(start, errorHandler, process);
-                OauthHelper.registerRunner(interactiveRunner);
-                interactiveRunner.runSteps();
-
-                try {
-                    process.waitFor();
-                } catch (InterruptedException e) {
-                    FLog.e(TAG, "doInBackground: ", e);
-                }
-            }
-            return null;
         }
     }
 }

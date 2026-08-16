@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -38,7 +40,6 @@ fun LogViewerComposeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
 
     var showMenu by remember { mutableStateOf(false) }
     var showLimitDialog by remember { mutableStateOf(false) }
@@ -77,7 +78,7 @@ fun LogViewerComposeScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -311,7 +312,7 @@ fun LogViewerComposeScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Outlined.Article,
+                            Icons.AutoMirrored.Outlined.Article,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
