@@ -87,25 +87,12 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "Extracted App Version: $VERSION_NAME"
 
-      - name: Resolve Latest Rclone Engine Version
-        id: rclone_version
-        run: |
-          LATEST_TAG=$(curl -s --max-time 10 https://api.github.com/repos/rclone/rclone/releases/latest | grep -oP '"tag_name":\s*"v?\K[^"]+' || echo "")
-          FALLBACK_VERSION=$(grep -E "^de\.felixnuesse\.extract\.rCloneVersion=" gradle.properties | cut -d'=' -f2)
-          if [ -n "$LATEST_TAG" ]; then
-            echo "RCLONE_VERSION=$LATEST_TAG" >> $GITHUB_ENV
-            echo "Successfully resolved latest Rclone version from GitHub: v$LATEST_TAG"
-          else
-            echo "RCLONE_VERSION=$FALLBACK_VERSION" >> $GITHUB_ENV
-            echo "Using fallback Rclone version from gradle.properties: v$FALLBACK_VERSION"
-          fi
-
       - name: Build Release APK
         run: |
           if [ -f "release_keystore.jks" ]; then
-            ./gradlew assembleRelease -Pde.felixnuesse.extract.rCloneVersion=${{ env.RCLONE_VERSION }}
+            ./gradlew assembleRelease
           else
-            ./gradlew assembleDebug -Pde.felixnuesse.extract.rCloneVersion=${{ env.RCLONE_VERSION }}
+            ./gradlew assembleDebug
           fi
 
       - name: Upload APK to Artifacts
