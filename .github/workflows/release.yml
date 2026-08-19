@@ -10,7 +10,7 @@ on:
         default: false
   push:
     branches:
-      - '**'
+      - 'main'
     paths:
       - 'app/**'
       - 'gradle/**'
@@ -22,6 +22,10 @@ on:
       - 'gradlew'
       - 'gradlew.bat'
       - '.github/workflows/**'
+      - 'main'
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
 
 permissions:
   contents: write
