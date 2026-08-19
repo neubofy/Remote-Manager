@@ -1,11 +1,7 @@
-// This is the rclone build script. It can build rclone binaries for any target
-// architecture on any target architecture.
+// This is the rclone build script. It builds the rclone binary for arm64-v8a.
 //
 // Supported Android targets:
-//  - arm-v8a (64 bit arm)
-//  - arm-v7a (32 bit arm7)
-//  - x86 (32 bit)
-//  - x64 (64 bit)
+//  - arm64-v8a (64 bit arm)
 //
 // Supported host systems:
 //  - linux x64
@@ -91,7 +87,7 @@ def findNdkDir() {
     return ndkPath.toString()
 }
 
-def getCrossCompiler(abi) {
+def getCrossCompiler() {
     def osName = System.properties['os.name']
     def osArch = System.properties['os.arch']
     def os = null
@@ -109,10 +105,6 @@ def getCrossCompiler(abi) {
         throw new GradleException('Unsupported host OS or architecture.')
     }
 
-    def abiToCompiler = [
-        'arm64-v8a': "aarch64-linux-android${NDK_TOOLCHAIN_VERSION}-clang"
-    ]
-
     return Paths.get(
         findNdkDir(),
         'toolchains',
@@ -120,30 +112,26 @@ def getCrossCompiler(abi) {
         'prebuilt',
         os,
         'bin',
-        abiToCompiler[abi],
+        "aarch64-linux-android${NDK_TOOLCHAIN_VERSION}-clang",
     )
 }
 
-def getOutputPath(abi) {
-    return Paths.get(OUTPUT_BASE_PATH, abi, 'librclone.so').toString()
+def getOutputPath() {
+    return Paths.get(OUTPUT_BASE_PATH, 'arm64-v8a', 'librclone.so').toString()
 }
 
-def buildRclone(abi) {
-    def abiToEnv = [
-        'arm64-v8a': ['GOARCH': 'arm64']
-    ]
-
+def buildRclone() {
     return {
         doLast {
             exec {
                 environment 'GOPATH', GOPATH
-                def crossCompiler = getCrossCompiler(abi)
+                def crossCompiler = getCrossCompiler()
                 environment 'CC', crossCompiler
                 environment 'CC_FOR_TARGET', crossCompiler
                 environment 'GOOS', 'android'
+                environment 'GOARCH', 'arm64'
                 environment 'CGO_ENABLED', '1'
                 environment 'CGO_LDFLAGS', '-fuse-ld=lld -Wl,--hash-style=both -Wl,-z,max-page-size=16384 -s'
-                abiToEnv[abi].each {entry -> environment entry.key, entry.value}
                 workingDir CACHE_PATH
                 def ldflags = "-buildid= -X github.com/rclone/rclone/fs.Version=${RCLONE_VERSION}${RCLONE_CUSTOM_VERSION_SUFFIX}"
                 commandLine (
@@ -155,7 +143,7 @@ def buildRclone(abi) {
                     '-ldflags',
                     ldflags,
                     '-o',
-                    getOutputPath(abi),
+                    getOutputPath(),
                     RCLONE_MODULE
                 )
             }
@@ -195,7 +183,7 @@ task checkoutRclone(type: Exec, dependsOn: createRcloneModule) {
 }
 
 task buildArm64(dependsOn: checkoutRclone) {
-    configure buildRclone('arm64-v8a')
+    configure buildRclone()
 }
 
 task buildAll {
