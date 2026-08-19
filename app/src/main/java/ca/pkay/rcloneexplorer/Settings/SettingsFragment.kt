@@ -25,6 +25,7 @@ class SettingsFragment : Fragment() {
         const val LOOK_AND_FEEL_SETTINGS = 3
         const val LOGGING_SETTINGS = 4
         const val NOTIFICATION_SETTINGS = 5
+        const val PERMISSION_SETTINGS = 6
 
         @JvmStatic
         fun newInstance(showBackButton: Boolean = true): SettingsFragment {

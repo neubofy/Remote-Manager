@@ -95,6 +95,14 @@ fun SettingsScreen(
             )
 
             SettingsCard(
+                icon = Icons.Outlined.Security,
+                iconTint = Color(0xFFEF4444),
+                title = "Permissions",
+                subtitle = "Manage app permissions and access rights",
+                onClick = { onCategoryClick(SettingsFragment.PERMISSION_SETTINGS) }
+            )
+
+            SettingsCard(
                 icon = Icons.Outlined.Notifications,
                 iconTint = Color(0xFFF59E0B),
                 title = "Notifications & Reports",
