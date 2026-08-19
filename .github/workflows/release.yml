@@ -23,9 +23,8 @@ on:
       - 'gradlew.bat'
       - '.github/workflows/**'
       - 'main'
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
+      - '!**.md'
+      - '!.gitignore'
 
 permissions:
   contents: write
