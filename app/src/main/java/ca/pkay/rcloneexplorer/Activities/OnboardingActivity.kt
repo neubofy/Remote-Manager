@@ -87,7 +87,7 @@ class OnboardingActivity : ComponentActivity() {
 @Composable
 fun OnboardingScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
-    val pagerState = rememberPagerState(pageCount = { 5 })
+    val pagerState = rememberPagerState(pageCount = { 6 })
     val coroutineScope = rememberCoroutineScope()
     val permissionManager = remember { PermissionManager(context) }
 
@@ -209,7 +209,17 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                             permissionManager.requestBatteryOptimizationException()
                         }
                     )
-                    4 -> OnboardingSlide(
+                    4 -> OnboardingPermissionSlide(
+                        icon = Icons.Default.AccessAlarm,
+                        title = "Alarms & Scheduling",
+                        description = "Schedule background sync tasks and reliable job execution on time.",
+                        isGranted = permissionManager.grantedAlarms(),
+                        buttonText = if (permissionManager.grantedAlarms()) "Alarms Enabled" else "Enable Alarms",
+                        onGrantClick = {
+                            permissionManager.requestAlarms()
+                        }
+                    )
+                    5 -> OnboardingSlide(
                         iconRes = R.drawable.app_logo,
                         title = "You're All Set!",
                         subtitle = "Connect your Google Drive, OneDrive, S3, SFTP, WebDAV, Mega, or local storage remotes and start managing seamlessly.",
@@ -242,7 +252,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
                 Button(
                     onClick = {
-                        if (pagerState.currentPage < 4) {
+                        if (pagerState.currentPage < 5) {
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
@@ -257,7 +267,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     modifier = Modifier.height(50.dp)
                 ) {
                     Text(
-                        text = if (pagerState.currentPage == 4) "Get Started" else "Next",
+                        text = if (pagerState.currentPage == 5) "Get Started" else "Next",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )

@@ -21,6 +21,7 @@ import ca.pkay.rcloneexplorer.Settings.ThemingPreferencesFragment;
 import ca.pkay.rcloneexplorer.util.ActivityHelper;
 import ca.pkay.rcloneexplorer.R;
 import ca.pkay.rcloneexplorer.RuntimeConfiguration;
+import ca.pkay.rcloneexplorer.Fragments.PermissionFragment;
 
 public class SettingsActivity extends AppCompatActivity implements SettingsFragment.OnSettingCategorySelectedListener {
 
@@ -101,6 +102,8 @@ public class SettingsActivity extends AppCompatActivity implements SettingsFragm
             startNotificationSettingsFragment();
         } else if (fragment instanceof ca.pkay.rcloneexplorer.ui.logs.LogViewerComposeFragment || fragment instanceof LogPreferencesFragment) {
             startLoggingSettingsActivity();
+        } else if (fragment instanceof PermissionFragment) {
+            startPermissionSettingsFragment();
         }
     }
 
@@ -167,6 +170,17 @@ public class SettingsActivity extends AppCompatActivity implements SettingsFragm
         transaction.commit();
     }
 
+    private void startPermissionSettingsFragment() {
+        if (findViewById(R.id.appBar) != null) {
+            findViewById(R.id.appBar).setVisibility(View.VISIBLE);
+        }
+        setTitle(R.string.permissions_settings_title);
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.flFragment, PermissionFragment.Companion.newInstance(true), SAVED_FRAGMENT);
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
+
     @Override
     public void onSettingCategoryClicked(int category) {
         switch (category) {
@@ -184,6 +198,9 @@ public class SettingsActivity extends AppCompatActivity implements SettingsFragm
                 break;
             case SettingsFragment.NOTIFICATION_SETTINGS:
                 startNotificationSettingsFragment();
+                break;
+            case SettingsFragment.PERMISSION_SETTINGS:
+                startPermissionSettingsFragment();
                 break;
         }
     }

@@ -443,7 +443,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void startPermissionFragment() {
-        startFragment(PermissionFragment.Companion.newInstance());
+        startFragment(PermissionFragment.Companion.newInstance(false));
     }
 
     private void startFragment(Fragment fragmentToStart) {
