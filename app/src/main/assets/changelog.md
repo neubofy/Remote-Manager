@@ -168,7 +168,7 @@
 * First Release with non-conflicting package name
 * **New:** Update to Rclone v1.49.1
 * **New:** Support for devices with x86_64 cpu and new Android W^X policy
-* **New:** Import external config files automatically by placing them on external storage in ```Android/data/``````ca.pkay.rcloneexplorer.x0b``````/files/rclone.conf```
+* **New:** Import external config files automatically by placing them on external storage in ```Android/data/``````com.neubofy.remotemanager.x0b``````/files/rclone.conf```
 * **New:** Fix files with mime type application/octet-stream if they have a playable extension
 * **Fix:** Crash when folder to large
 * **Fix:** Onedrive config has been removed from ui because it is no longer compatible with rclone

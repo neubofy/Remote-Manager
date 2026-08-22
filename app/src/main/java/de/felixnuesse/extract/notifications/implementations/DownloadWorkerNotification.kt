@@ -1,10 +1,10 @@
 package de.felixnuesse.extract.notifications.implementations
 
 import android.content.Context
-import ca.pkay.rcloneexplorer.Items.FileItem
-import ca.pkay.rcloneexplorer.R
-import ca.pkay.rcloneexplorer.notifications.prototypes.WorkerNotification
-import ca.pkay.rcloneexplorer.notifications.support.StatusObject
+import com.neubofy.remotemanager.Items.FileItem
+import com.neubofy.remotemanager.R
+import com.neubofy.remotemanager.notifications.prototypes.WorkerNotification
+import com.neubofy.remotemanager.notifications.support.StatusObject
 
 class DownloadWorkerNotification(var context: Context) : WorkerNotification(context) {
 

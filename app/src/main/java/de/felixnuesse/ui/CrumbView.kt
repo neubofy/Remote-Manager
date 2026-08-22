@@ -7,8 +7,8 @@ import android.view.View
 import android.widget.LinearLayout
 import androidx.appcompat.widget.TooltipCompat
 import androidx.core.content.ContextCompat
-import ca.pkay.rcloneexplorer.R
-import ca.pkay.rcloneexplorer.databinding.CustomuiCrumbviewBinding
+import com.neubofy.remotemanager.R
+import com.neubofy.remotemanager.databinding.CustomuiCrumbviewBinding
 
 
 class CrumbView : LinearLayout {

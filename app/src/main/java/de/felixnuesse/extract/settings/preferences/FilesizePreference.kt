@@ -5,7 +5,7 @@ import android.content.res.TypedArray
 import android.util.AttributeSet
 import android.util.Log
 import androidx.preference.DialogPreference
-import ca.pkay.rcloneexplorer.R
+import com.neubofy.remotemanager.R
 import de.felixnuesse.extract.extensions.tag
 import de.felixnuesse.extract.settings.preferences.dialogs.FilesizeDialog
 import java.lang.NumberFormatException

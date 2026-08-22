@@ -8,7 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.ConfigurationCompat
 import androidx.core.os.LocaleListCompat
-import ca.pkay.rcloneexplorer.R
+import com.neubofy.remotemanager.R
 import java.util.Locale
 
 

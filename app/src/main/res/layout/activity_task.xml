@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    tools:context="ca.pkay.rcloneexplorer.Activities.TaskActivity">
+    tools:context="com.neubofy.remotemanager.Activities.TaskActivity">
 
 
     <com.google.android.material.appbar.AppBarLayout
