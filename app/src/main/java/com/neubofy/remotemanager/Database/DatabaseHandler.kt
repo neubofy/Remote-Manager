@@ -1,0 +1,469 @@
+package com.neubofy.remotemanager.Database
+
+import android.content.ContentValues
+import android.content.Context
+import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.DATABASE_NAME
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.DATABASE_VERSION
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_CREATE_TABLES_TASKS
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_CREATE_TABLE_FILTERS
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_CREATE_TABLE_TRIGGER
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_DELETE_EXCLUDED
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_MD5
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_WIFI
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_FILTER_ID
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_FOLLOWUPS_FAIL
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TASK_ADD_FOLLOWUPS_SUCCESS
+import com.neubofy.remotemanager.Database.DatabaseInfo.Companion.SQL_UPDATE_TRIGGER_ADD_TYPE
+import com.neubofy.remotemanager.Items.Filter
+import com.neubofy.remotemanager.Items.Task
+import com.neubofy.remotemanager.Items.Trigger
+import java.util.ArrayList
+
+class DatabaseHandler(private val mContext: Context?) :
+    SQLiteOpenHelper(mContext, DATABASE_NAME, null, DATABASE_VERSION) {
+
+    override fun onCreate(sqLiteDatabase: SQLiteDatabase) {
+        sqLiteDatabase.execSQL(SQL_CREATE_TABLES_TASKS)
+        sqLiteDatabase.execSQL(SQL_CREATE_TABLE_TRIGGER)
+        sqLiteDatabase.execSQL(SQL_CREATE_TABLE_FILTERS)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_MD5)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_WIFI)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TRIGGER_ADD_TYPE)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FILTER_ID)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_DELETE_EXCLUDED)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FOLLOWUPS_FAIL)
+        sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FOLLOWUPS_SUCCESS)
+    }
+
+    override fun onUpgrade(sqLiteDatabase: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            sqLiteDatabase.execSQL(SQL_CREATE_TABLE_TRIGGER)
+        }
+        if (oldVersion < 3) {
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_MD5)
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_WIFI)
+        }
+        if (oldVersion < 4) {
+            sqLiteDatabase.execSQL(SQL_UPDATE_TRIGGER_ADD_TYPE)
+        }
+        if (oldVersion < 5) {
+            sqLiteDatabase.execSQL(SQL_CREATE_TABLE_FILTERS)
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FILTER_ID)
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_DELETE_EXCLUDED)
+        }
+        if (oldVersion < 6) {
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FOLLOWUPS_FAIL)
+            sqLiteDatabase.execSQL(SQL_UPDATE_TASK_ADD_FOLLOWUPS_SUCCESS)
+        }
+    }
+
+    val allTasks: List<Task>
+        get() {
+            val db = readableDatabase
+            val sortOrder = Task.COLUMN_NAME_ID + " ASC"
+            val cursor = db.query(
+                Task.TABLE_NAME,
+                taskProjection,
+                null,
+                null,
+                null,
+                null,
+                sortOrder
+            )
+            val results: MutableList<Task> = ArrayList()
+            while (cursor.moveToNext()) {
+                results.add(taskFromCursor(cursor))
+            }
+            cursor.close()
+            return results
+        }
+
+    fun getTask(id: Long): Task? {
+        val db = readableDatabase
+        val selection = Task.COLUMN_NAME_ID + " = ?"
+        val selectionArgs = arrayOf(id.toString())
+        val sortOrder = Task.COLUMN_NAME_ID + " ASC"
+        val cursor = db.query(
+            Task.TABLE_NAME,
+            taskProjection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            sortOrder
+        )
+        val results: MutableList<Task> = ArrayList()
+        while (cursor.moveToNext()) {
+            results.add(taskFromCursor(cursor))
+        }
+        cursor.close()
+        return if (results.size == 0) {
+            null
+        } else results[0]
+    }
+
+    fun createTask(taskToStore: Task, withId: Boolean = false): Task {
+        val db = writableDatabase
+        val newRowId = db.insert(Task.TABLE_NAME, null, if(withId) getTaskContentValuesWithID(taskToStore) else getTaskContentValues(taskToStore))
+        taskToStore.id = newRowId
+        return taskToStore
+    }
+
+    fun updateTask(taskToUpdate: Task) {
+        val oldTask = getTask(taskToUpdate.id)
+        val pathsOrDirectionChanged = oldTask == null ||
+                oldTask.localPath != taskToUpdate.localPath ||
+                oldTask.remotePath != taskToUpdate.remotePath ||
+                oldTask.remoteId != taskToUpdate.remoteId ||
+                oldTask.direction != taskToUpdate.direction
+
+        val db = writableDatabase
+        db.update(
+            Task.TABLE_NAME,
+            getTaskContentValues(taskToUpdate),
+            Task.COLUMN_NAME_ID + " = ?",
+            arrayOf(taskToUpdate.id.toString())
+        )
+        if (pathsOrDirectionChanged) {
+            mContext?.let { com.neubofy.remotemanager.Rclone(it).cleanTaskBisyncDir(taskToUpdate.id.toInt()) }
+        }
+    }
+
+    private val taskProjection: Array<String>
+        get() = arrayOf(
+            Task.COLUMN_NAME_ID,
+            Task.COLUMN_NAME_TITLE,
+            Task.COLUMN_NAME_REMOTE_ID,
+            Task.COLUMN_NAME_REMOTE_TYPE,
+            Task.COLUMN_NAME_REMOTE_PATH,
+            Task.COLUMN_NAME_LOCAL_PATH,
+            Task.COLUMN_NAME_SYNC_DIRECTION,
+            Task.COLUMN_NAME_MD5SUM,
+            Task.COLUMN_NAME_WIFI_ONLY,
+            Task.COLUMN_NAME_FILTER_ID,
+            Task.COLUMN_NAME_DELETE_EXCLUDED,
+            Task.COLUMN_NAME_ONFAIL_FOLLOWUP,
+            Task.COLUMN_NAME_ONSUCCESS_FOLLOWUP
+        )
+
+    private fun taskFromCursor(cursor: Cursor): Task {
+        val task = Task(cursor.getLong(0))
+        task.title = cursor.getString(1)
+        task.remoteId = cursor.getString(2)
+        task.remoteType = cursor.getInt(3)
+        task.remotePath = cursor.getString(4)
+        task.localPath = cursor.getString(5)
+        task.direction = cursor.getInt(6)
+        task.md5sum = getBoolean(cursor, 7)
+        task.wifionly = getBoolean(cursor, 8)
+        task.filterId = cursor.getLong(9)
+        task.deleteExcluded = getBoolean(cursor, 10)
+        task.onFailFollowup = cursor.getLong(11)
+        task.onSuccessFollowup = cursor.getLong(12)
+        return task
+    }
+
+    private fun getTaskContentValuesWithID(task: Task): ContentValues {
+        val values = getTaskContentValues(task)
+        values.put(Task.COLUMN_NAME_ID, task.id)
+        return values
+    }
+
+    fun deleteTask(id: Long): Int {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(Trigger.TABLE_NAME, Trigger.COLUMN_NAME_TARGET + " = ?", arrayOf(id.toString()))
+            val selection = Task.COLUMN_NAME_ID + " = ?"
+            val selectionArgs = arrayOf(id.toString())
+            val count = db.delete(Task.TABLE_NAME, selection, selectionArgs)
+            db.setTransactionSuccessful()
+            mContext?.let { com.neubofy.remotemanager.Rclone(it).cleanTaskBisyncDir(id.toInt()) }
+            return count
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun deleteTriggersForTask(taskId: Long): Int {
+        val db = writableDatabase
+        return db.delete(Trigger.TABLE_NAME, Trigger.COLUMN_NAME_TARGET + " = ?", arrayOf(taskId.toString()))
+    }
+
+    fun getTriggersForTask(taskId: Long): List<Trigger> {
+        val db = readableDatabase
+        val projection = triggerProjection
+        val selection = Trigger.COLUMN_NAME_TARGET + " = ?"
+        val selectionArgs = arrayOf(taskId.toString())
+        val sortOrder = Trigger.COLUMN_NAME_ID + " ASC"
+        val cursor = db.query(
+            Trigger.TABLE_NAME,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            sortOrder
+        )
+        val results: MutableList<Trigger> = ArrayList()
+        while (cursor.moveToNext()) {
+            results.add(triggerFromCursor(cursor))
+        }
+        cursor.close()
+        return results
+    }
+
+    private fun getTaskContentValues(task: Task): ContentValues {
+        val values = ContentValues()
+        values.put(Task.COLUMN_NAME_TITLE, task.title)
+        values.put(Task.COLUMN_NAME_LOCAL_PATH, task.localPath)
+        values.put(Task.COLUMN_NAME_REMOTE_ID, task.remoteId)
+        values.put(Task.COLUMN_NAME_REMOTE_PATH, task.remotePath)
+        values.put(Task.COLUMN_NAME_REMOTE_TYPE, task.remoteType)
+        values.put(Task.COLUMN_NAME_SYNC_DIRECTION, task.direction)
+        values.put(Task.COLUMN_NAME_MD5SUM, task.md5sum)
+        values.put(Task.COLUMN_NAME_WIFI_ONLY, task.wifionly)
+        values.put(Task.COLUMN_NAME_FILTER_ID, task.filterId)
+        values.put(Task.COLUMN_NAME_DELETE_EXCLUDED, task.deleteExcluded)
+        values.put(Task.COLUMN_NAME_ONFAIL_FOLLOWUP, task.onFailFollowup)
+        values.put(Task.COLUMN_NAME_ONSUCCESS_FOLLOWUP, task.onSuccessFollowup)
+        return values
+    }
+
+    val allTrigger: List<Trigger>
+        get() {
+            val db = readableDatabase
+            val projection = triggerProjection
+            val sortOrder = Trigger.COLUMN_NAME_ID + " ASC"
+            val cursor = db.query(
+                    Trigger.TABLE_NAME,
+                    projection,
+                    null,
+                    null,
+                    null,
+                    null,
+                    sortOrder
+            )
+            val results: MutableList<Trigger> = ArrayList()
+            while (cursor.moveToNext()) {
+                results.add(triggerFromCursor(cursor))
+            }
+            cursor.close()
+            return results
+        }
+
+    fun getTrigger(id: Long): Trigger? {
+        val db = readableDatabase
+        val projection = triggerProjection
+        val selection = Trigger.COLUMN_NAME_ID + " = ?"
+        val selectionArgs = arrayOf(id.toString())
+        val sortOrder = Trigger.COLUMN_NAME_ID + " ASC"
+        val cursor = db.query(
+                Trigger.TABLE_NAME,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                sortOrder
+        )
+        val results: MutableList<Trigger> = ArrayList()
+        while (cursor.moveToNext()) {
+            results.add(triggerFromCursor(cursor))
+        }
+        cursor.close()
+        return if (results.size == 0) {
+            null
+        } else results[0]
+    }
+
+    fun createTrigger(triggerToStore: Trigger, withId: Boolean = false): Trigger {
+        val db = writableDatabase
+        val newRowId = db.insert(Trigger.TABLE_NAME, null, if(withId) getTriggerContentValuesWithID(triggerToStore) else getTriggerContentValues(triggerToStore))
+        triggerToStore.id = newRowId
+        return triggerToStore
+    }
+
+    fun updateTrigger(triggerToUpdate: Trigger) {
+        val db = writableDatabase
+        db.update(
+                Trigger.TABLE_NAME,
+                getTriggerContentValuesWithID(triggerToUpdate),
+                Trigger.COLUMN_NAME_ID + " = ?",
+                arrayOf(triggerToUpdate.id.toString())
+        )
+    }
+
+    fun deleteTrigger(id: Long): Int {
+        val db = writableDatabase
+        val selection = Trigger.COLUMN_NAME_ID + " = ?"
+        val selectionArgs = arrayOf(id.toString())
+        return db.delete(Trigger.TABLE_NAME, selection, selectionArgs)
+    }
+
+    private fun getTriggerContentValuesWithID(t: Trigger): ContentValues {
+        val values = getTriggerContentValues(t)
+        values.put(Trigger.COLUMN_NAME_ID, t.id)
+        return values
+    }
+
+    private fun getTriggerContentValues(t: Trigger): ContentValues {
+        val values = ContentValues()
+        if(t.id != Trigger.TRIGGER_ID_DOESNTEXIST) {
+            values.put(Trigger.COLUMN_NAME_ID, t.id)
+        }
+        values.put(Trigger.COLUMN_NAME_TITLE, t.title)
+        values.put(Trigger.COLUMN_NAME_ENABLED, t.isEnabled)
+        values.put(Trigger.COLUMN_NAME_TIME, t.time)
+        values.put(Trigger.COLUMN_NAME_WEEKDAY, t.weekdays)
+        values.put(Trigger.COLUMN_NAME_TARGET, t.triggerTarget)
+        values.put(Trigger.COLUMN_NAME_TYPE, t.type)
+        return values
+    }
+
+    private val triggerProjection: Array<String>
+        get() = arrayOf(
+                Trigger.COLUMN_NAME_ID,
+                Trigger.COLUMN_NAME_TITLE,
+                Trigger.COLUMN_NAME_ENABLED,
+                Trigger.COLUMN_NAME_TIME,
+                Trigger.COLUMN_NAME_WEEKDAY,
+                Trigger.COLUMN_NAME_TARGET,
+                Trigger.COLUMN_NAME_TYPE
+        )
+
+    private fun triggerFromCursor(cursor: Cursor): Trigger {
+        val trigger = Trigger(cursor.getLong(0))
+        trigger.title = cursor.getString(1)
+        trigger.isEnabled = cursor.getInt(2) == 1
+        trigger.time = cursor.getInt(3)
+        val weekdays = cursor.getInt(4)
+        trigger.weekdays = weekdays.toByte()
+        trigger.triggerTarget = cursor.getLong(5)
+        trigger.type = cursor.getInt(6)
+        return trigger
+    }
+
+    val allFilters: List<Filter>
+        get() {
+            val db = readableDatabase
+            val projection = filterProjection
+            val sortOrder = Filter.COLUMN_NAME_ID + " ASC"
+            val cursor = db.query(
+                    Filter.TABLE_NAME,
+                    projection,
+                    null,
+                    null,
+                    null,
+                    null,
+                    sortOrder
+            )
+            val results: MutableList<Filter> = ArrayList()
+            while (cursor.moveToNext()) {
+                results.add(filterFromCursor(cursor))
+            }
+            cursor.close()
+            return results
+        }
+
+    fun getFilter(id: Long): Filter? {
+        val db = readableDatabase
+        val projection = filterProjection
+        val selection = Filter.COLUMN_NAME_ID + " = ?"
+        val selectionArgs = arrayOf(id.toString())
+        val sortOrder = Filter.COLUMN_NAME_ID + " ASC"
+        val cursor = db.query(
+                Filter.TABLE_NAME,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                sortOrder
+        )
+        val results: MutableList<Filter> = ArrayList()
+        while (cursor.moveToNext()) {
+            results.add(filterFromCursor(cursor))
+        }
+        cursor.close()
+        return if (results.size == 0) {
+            null
+        } else results[0]
+    }
+
+    fun createFilter(filterToStore: Filter, withId: Boolean = false): Filter {
+        val db = writableDatabase
+        val newRowId = db.insert(Filter.TABLE_NAME, null, if(withId) getFilterContentValuesWithID(filterToStore) else getFilterContentValues(filterToStore))
+        filterToStore.id = newRowId
+        return filterToStore
+    }
+
+    fun updateFilter(filterToUpdate: Filter) {
+        val db = writableDatabase
+        db.update(
+                Filter.TABLE_NAME,
+                getFilterContentValuesWithID(filterToUpdate),
+                Filter.COLUMN_NAME_ID + " = ?",
+                arrayOf(filterToUpdate.id.toString())
+        )
+    }
+
+    fun deleteFilter(id: Long): Int {
+        val db = writableDatabase
+        val selection = Filter.COLUMN_NAME_ID + " = ?"
+        val selectionArgs = arrayOf(id.toString())
+        return db.delete(Filter.TABLE_NAME, selection, selectionArgs)
+    }
+
+    private fun getFilterContentValuesWithID(t: Filter): ContentValues {
+        val values = getFilterContentValues(t)
+        values.put(Filter.COLUMN_NAME_ID, t.id)
+        return values
+    }
+
+    private fun getFilterContentValues(t: Filter): ContentValues {
+        val values = ContentValues()
+        values.put(Filter.COLUMN_NAME_TITLE, t.title)
+        values.put(Filter.COLUMN_NAME_FILTERS, t.getFiltersRaw())
+        return values
+    }
+
+    private val filterProjection: Array<String>
+        get() = arrayOf(
+                Filter.COLUMN_NAME_ID,
+                Filter.COLUMN_NAME_TITLE,
+                Filter.COLUMN_NAME_FILTERS,
+        )
+
+    private fun filterFromCursor(cursor: Cursor): Filter {
+        val filter = Filter(cursor.getLong(0))
+        filter.title = cursor.getString(1)
+        filter.setFiltersRaw(cursor.getString(2))
+        return filter
+    }
+
+    fun deleteEveryting() {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(Trigger.TABLE_NAME, null, null)
+            db.delete(Task.TABLE_NAME, null, null)
+            db.delete(Filter.TABLE_NAME, null, null)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    private fun getBoolean(cursor: Cursor, cursorid: Int): Boolean {
+        return when(cursor.getInt(cursorid)){
+            0 -> false
+            1 -> true
+            else -> true
+        }
+    }
+}

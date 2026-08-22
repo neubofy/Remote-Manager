@@ -11,7 +11,7 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/remotes_list"
-        android:name="ca.pkay.rcloneexplorer.RemotesFragment"
+        android:name="com.neubofy.remotemanager.RemotesFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"

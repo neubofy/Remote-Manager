@@ -58,7 +58,7 @@
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/file_permission_list"
-            android:name="ca.pkay.rcloneexplorer.RemotesFragment"
+            android:name="com.neubofy.remotemanager.RemotesFragment"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:clipToPadding="false"

@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.Button
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
-import ca.pkay.rcloneexplorer.R
+import com.neubofy.remotemanager.R
 
 
 /**

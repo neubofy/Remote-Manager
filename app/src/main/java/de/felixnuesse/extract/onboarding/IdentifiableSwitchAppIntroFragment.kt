@@ -7,7 +7,7 @@ import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.annotation.FontRes
 import androidx.appcompat.widget.SwitchCompat
-import ca.pkay.rcloneexplorer.R
+import com.neubofy.remotemanager.R
 import com.github.appintro.AppIntroBaseFragment
 import com.github.appintro.AppIntroFragment
 import com.github.appintro.SlidePolicy
