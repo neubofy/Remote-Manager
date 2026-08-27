@@ -150,7 +150,7 @@
     <string name="pref_locale_dlg_title">Select Language</string>
     <string name="pref_locale_restart_notice">Changing the language will take effect after restarting the app</string>
     <string name="use_logs">Log rclone errors</string>
-    <string name="use_logs_summary">Error logs will be saved to a local file at (Android/data/rm.neubofy.in/files/logs)</string>
+    <string name="use_logs_summary">Error logs will be saved to a local file at (Android/data/com.neubofy.rm/files/logs)</string>
     <string name="notifications_pref_title">Notifications</string>
     <string name="open_notification_settings_title">More notification settings</string>
     <string name="open_notification_settings_summary">Open the settings to further change how we notify you!</string>
