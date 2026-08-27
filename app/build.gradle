@@ -30,7 +30,7 @@ android {
     defaultConfig {
         generatedDensities = []
         vectorDrawables.generatedDensities = []
-        applicationId 'rm.neubofy.in'
+        applicationId 'com.neubofy.rm'
         minSdkVersion 26
         compileSdk 35
         targetSdkVersion 35
@@ -74,7 +74,7 @@ android {
             ]
             applicationIdSuffix ".debug"
             versionNameSuffix "-DEBUG"
-            buildConfigField "java.lang.String", "VCP_AUTHORITY", "\"rm.neubofy.in.debug.vcp\"";
+            buildConfigField "java.lang.String", "VCP_AUTHORITY", "\"com.neubofy.rm.debug.vcp\"";
             resValue("string", "app_name", "Remote Manager (Debug)")
             resValue("string", "app_short_name", "Remote Manager")
         }
