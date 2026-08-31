@@ -14,23 +14,30 @@ object SecurePreferencesHelper {
     fun getSecurePreferences(context: Context): SharedPreferences {
         if (securePrefs == null) {
             try {
-                val masterKey = MasterKey.Builder(context.applicationContext)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-
-                securePrefs = EncryptedSharedPreferences.create(
-                    context.applicationContext,
-                    SECURE_PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
+                securePrefs = createEncryptedSharedPreferences(context)
             } catch (e: Exception) {
-                FLog.e("SecurePreferencesHelper", "Failed to initialize EncryptedSharedPreferences, fallback to default", e)
-                securePrefs = context.applicationContext.getSharedPreferences(SECURE_PREFS_FILE, Context.MODE_PRIVATE)
+                FLog.e("SecurePreferencesHelper", "Failed to initialize EncryptedSharedPreferences, clearing and retrying", e)
+                // Delete the corrupted preferences file
+                context.applicationContext.deleteSharedPreferences(SECURE_PREFS_FILE)
+                // Retry creating EncryptedSharedPreferences. If it fails again, we let the exception bubble up.
+                securePrefs = createEncryptedSharedPreferences(context)
             }
         }
         return securePrefs!!
+    }
+
+    private fun createEncryptedSharedPreferences(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context.applicationContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            context.applicationContext,
+            SECURE_PREFS_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 
     fun putSecureString(context: Context, key: String, value: String?) {

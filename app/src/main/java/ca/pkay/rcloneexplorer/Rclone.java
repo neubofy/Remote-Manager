@@ -1603,6 +1603,9 @@ public class Rclone {
                     String line;
                     while ((line = stdOut.readLine()) != null || (line = stdErr.readLine()) != null) {
                         if (line.contains("could not parse line")) {
+                            if (line.contains("RCLONE_ENCRYPTED_v0")) {
+                                return true;
+                            }
                             return false;
                         }
                     }
