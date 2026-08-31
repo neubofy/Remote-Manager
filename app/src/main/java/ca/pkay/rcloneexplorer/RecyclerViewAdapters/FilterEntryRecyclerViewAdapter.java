@@ -45,8 +45,12 @@ public class FilterEntryRecyclerViewAdapter extends RecyclerView.Adapter<FilterE
     public void onBindViewHolder(@NonNull final ViewHolder holder, final int position) {
         final FilterEntry selectedFilterEntry = filterEntries.get(position);
 
+        if (holder.textWatcher != null) {
+            holder.filterText.removeTextChangedListener(holder.textWatcher);
+        }
+
         holder.filterText.setText(selectedFilterEntry.filter);
-        holder.filterText.addTextChangedListener(new TextWatcher() {
+        holder.textWatcher = new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override
@@ -55,7 +59,8 @@ public class FilterEntryRecyclerViewAdapter extends RecyclerView.Adapter<FilterE
             }
             @Override
             public void afterTextChanged(Editable s) {}
-        });
+        };
+        holder.filterText.addTextChangedListener(holder.textWatcher);
 
 
 
@@ -97,6 +102,7 @@ public class FilterEntryRecyclerViewAdapter extends RecyclerView.Adapter<FilterE
         final Spinner filterTypeSpinner;
         final EditText filterText;
         final ImageButton fileOptions;
+        TextWatcher textWatcher;
 
         ViewHolder(View itemView) {
             super(itemView);
